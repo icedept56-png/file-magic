@@ -119,3 +119,28 @@ Stage Summary:
 - App is now a light emerald dashboard-style PWA with full bn/en bilingual UI (all tools, errors, progress). 29 tools, 100% client-side.
 - Key artifacts: src/lib/i18n.ts, src/lib/tools/messages.ts, sidebar.tsx, language-toggle.tsx, featured-tools.tsx, redesigned hero/tool-card/tool-grid/workspace/background/footer, globals.css light theme, manifest.ts, sw.js v4, new icons.
 - All PDF outputs are now correctly scaled (jsPDF px_scaling hotfix) — significant correctness fix beyond styling.
+
+---
+Task ID: 6
+Agent: main (Z.ai Code)
+Task: "Fix and develop this graphics" — root-cause broken rendering (user screenshot) + premium graphics upgrade
+
+Work Log:
+- Diagnosed user's screenshot (empty white boxes, missing colors, no sidebar): NOT a code bug — live page rendered fine in Agent Browser. Root cause = stale Service Worker in the user's browser (registered in a pre-Task-5 session when SW registered in dev too) serving old cached dark-theme CSS against new HTML.
+- Fixed register-sw.tsx (self-healing): in dev/NON-production it now unregisters ALL service workers + deletes ALL caches + reloads once (sessionStorage "fm-sw-healed" guard against loops); in production it registers /sw.js and unregisters any non-ours registrations.
+- Bumped public/sw.js cache to file-magic-v5 + added message handler (SKIP_WAITING) so future updates activate immediately.
+- Premium graphics upgrade:
+  - registry.ts: all 28 tool gradients + 7 category gradients upgraded flat bg-X-500 → bg-gradient-to-br from-X-500 to-Y-600 (+ shadow color tints shadow-X-500/40 that pair with component shadow sizes: pdf rose→red, image fuchsia→purple, document orange→amber, spreadsheet emerald→teal, archive teal→cyan, utility pink→rose).
+  - featured-tools.tsx REDESIGNED: hero card now spans full width (sm:col-span-2 lg:col-span-3) with "সবচেয়ে জনপ্রিয়/Most popular" flame badge, gradient btn-shine CTA pill, animated ConvertPreview (floating PDF→DOCX chips with icons, pulsing arrow, corner glows); 3 compact horizontal cards below in one balanced row; FIXED blue-color violation (bg-blue-500/90 DOCX chip → orange gradient).
+  - tool-card.tsx: 12px icon tiles w/ gradient+colored shadow, hover glow blob + gradient hairline (tinted via --glow), icon rotates -3deg on hover.
+  - hero.tsx: marquee edge-fade mask [mask-image:linear-gradient], decorative emerald glow behind header.
+  - features.tsx: 4 diversified gradient tiles (emerald/orange/rose/fuchsia) + whileHover lift.
+  - footer.tsx: gradient hairline, brand block with tool count + free tagline, trust badges (100% private / works offline).
+  - sidebar.tsx: per-category tool-count badges (Bengali numerals via toBn, localized by lang prop).
+  - category-tabs.tsx: colored gradient dot per category chip (mobile).
+  - i18n.ts: added featuredHeroBadge [সবচেয়ে জনপ্রিয়, Most popular].
+- Verified: bun lint 0 problems; tsc --noEmit 0 errors in src; Agent Browser E2E — desktop home (bn/en), featured hero + compact cards, sidebar counts (১০/৪/৭/৩/২/৩), mobile 390px (dots, stacked hero), workspace view gradient tile, features on scroll, footer badges, marquee fade; zero console/page errors in final state (one transient HMR error during i18n key sync, resolved).
+
+Stage Summary:
+- User's broken screenshot root-caused (stale SW) and permanently fixed via self-healing register-sw; browser will auto-recover on next visit.
+- App graphics now premium: gradient icon system app-wide, animated featured hero, balanced layouts, count badges, category dots, edge-fade marquee, richer footer. No blue/indigo anywhere. Lint + tsc clean, browser-verified bn/en desktop+mobile.

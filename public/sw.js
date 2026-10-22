@@ -1,5 +1,5 @@
 /* ফাইল ম্যাজিক — Service Worker (offline support) */
-const CACHE = "file-magic-v4";
+const CACHE = "file-magic-v5";
 
 // core shell precached at install → the app opens offline even on FIRST run
 const PRECACHE = [
@@ -38,6 +38,11 @@ self.addEventListener("activate", (event) => {
       await self.clients.claim();
     })()
   );
+});
+
+// let the page force-activate a waiting SW immediately
+self.addEventListener("message", (event) => {
+  if (event.data === "SKIP_WAITING") self.skipWaiting();
 });
 
 async function cacheFirst(request) {

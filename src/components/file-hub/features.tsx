@@ -6,6 +6,14 @@ import type { LucideIcon } from "lucide-react";
 
 import { useT } from "@/lib/i18n";
 
+/** per-feature gradient tile (variety is eye-catching but stays on-palette) */
+const FEATURE_TILE = [
+  "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30",
+  "bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-500/30",
+  "bg-gradient-to-br from-rose-500 to-red-600 shadow-rose-500/30",
+  "bg-gradient-to-br from-fuchsia-500 to-purple-600 shadow-fuchsia-500/30",
+];
+
 export function Features() {
   const { t } = useT();
 
@@ -27,7 +35,7 @@ export function Features() {
         >
           <h2 className="text-center text-2xl font-bold sm:text-3xl text-emerald-950">
             {t("featTitle1")}
-            <span className="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 bg-clip-text text-transparent">
               {t("brandName")}
             </span>
             {t("featTitle2")}
@@ -45,9 +53,12 @@ export function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.3, delay: Math.min(i * 0.06, 0.24) }}
+              whileHover={{ y: -4 }}
               className="fm-card fm-card-hover rounded-2xl p-6 transition-all"
             >
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25">
+              <span
+                className={`grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br shadow-md ${FEATURE_TILE[i % FEATURE_TILE.length]}`}
+              >
                 <Icon className="h-5 w-5 text-white" />
               </span>
               <h3 className="mt-4 font-bold text-emerald-950">{title}</h3>

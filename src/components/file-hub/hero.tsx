@@ -76,14 +76,18 @@ export function Hero() {
           transition={{ duration: 0.3 }}
         >
           {/* section title with green icon tile, like the reference dashboard */}
-          <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25">
+          <div className="relative flex items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -left-8 -top-10 h-28 w-28 rounded-full bg-emerald-400/15 blur-3xl"
+            />
+            <span className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25">
               <Sparkles className="h-[18px] w-[18px] text-white" />
             </span>
-            <h1 className="text-xl font-bold text-emerald-950 sm:text-2xl">
+            <h1 className="relative text-xl font-bold text-emerald-950 sm:text-2xl">
               {t("quickStart")}
             </h1>
-            <span className="ml-1 hidden rounded-full border border-emerald-600/15 bg-white px-2.5 py-0.5 text-xs font-medium text-emerald-700 sm:inline-block">
+            <span className="relative ml-1 hidden rounded-full border border-emerald-600/15 bg-white px-2.5 py-0.5 text-xs font-medium text-emerald-700 sm:inline-block">
               {t("freeForever")}
             </span>
           </div>
@@ -168,7 +172,7 @@ export function Hero() {
         >
           <div
             aria-hidden="true"
-            className="overflow-hidden rounded-2xl border border-emerald-900/[0.06] bg-white/70 py-2.5 shadow-sm"
+            className="overflow-hidden rounded-2xl border border-emerald-900/[0.06] bg-white/70 py-2.5 shadow-sm [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]"
           >
             <div className="fm-marquee flex w-max gap-2.5">
               {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (

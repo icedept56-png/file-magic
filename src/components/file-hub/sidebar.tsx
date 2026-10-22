@@ -15,9 +15,10 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { CATEGORIES } from "@/lib/tools/registry";
+import { CATEGORIES, TOOLS } from "@/lib/tools/registry";
+import { toBn } from "@/lib/tools/helpers";
 import { useT } from "@/lib/i18n";
-import { useAppStore } from "@/store/app-store";
+import { useAppStore, type Lang } from "@/store/app-store";
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   all: LayoutGrid,
@@ -62,6 +63,8 @@ export function Sidebar() {
   };
 
   const isHomeActive = view === "home" && category === "all";
+
+  const countFor = (id: string) => TOOLS.filter((tl) => tl.category === id).length;
 
   return (
     <aside
@@ -111,6 +114,8 @@ export function Sidebar() {
               active={active}
               tint={CATEGORY_TINT[c.id]}
               iconText={CATEGORY_TEXT[c.id]}
+              count={countFor(c.id)}
+              lang={lang}
               onClick={() => selectCategory(c.id)}
             />
           );
@@ -143,6 +148,8 @@ function NavItem({
   active,
   tint,
   iconText,
+  count,
+  lang,
   onClick,
 }: {
   icon: LucideIcon;
@@ -151,6 +158,8 @@ function NavItem({
   active: boolean;
   tint?: string;
   iconText?: string;
+  count?: number;
+  lang?: Lang;
   onClick: () => void;
 }) {
   return (
@@ -175,7 +184,7 @@ function NavItem({
           }`}
         />
       </span>
-      <span className="min-w-0">
+      <span className="min-w-0 flex-1">
         <span
           className={`block truncate text-sm font-semibold ${
             active ? "text-white" : "text-emerald-950/85"
@@ -193,6 +202,15 @@ function NavItem({
           </span>
         )}
       </span>
+      {typeof count === "number" && count > 0 && (
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
+            active ? "bg-white/25 text-white" : "bg-emerald-600/10 text-emerald-800/70"
+          }`}
+        >
+          {lang === "en" ? String(count) : toBn(count)}
+        </span>
+      )}
     </button>
   );
 }

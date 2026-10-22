@@ -29,6 +29,7 @@ const STR = {
   // featured
   featuredStart: ["শুরু করুন", "Get started"],
   featuredAria: ["জনপ্রিয় টুল", "Popular tools"],
+  featuredHeroBadge: ["সবচেয়ে জনপ্রিয়", "Most popular"],
 
   // grid
   browseAll: ["সব টুল একসাথে", "Browse every tool"],
