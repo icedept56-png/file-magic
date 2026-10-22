@@ -168,3 +168,25 @@ Stage Summary:
 - App now has a real professional PDF editing canvas (erase text, add Bengali/English text + images, draw, highlight, rotate/delete pages, undo, export) — 100% client-side.
 - 31 tools total; eye-friendly aurora background; tighter mobile layout with snap chips + dots.
 - Key artifacts: pdf-editor.tsx, editor-spotlight.tsx, app-store.ts (View editor), history-sync.tsx, background.tsx, registry.ts (+3 tools), image.ts (watermarkImage), data.ts (textStats), i18n.ts (ed* keys), globals.css (fm-ed-text placeholder, dot grid).
+
+---
+Task ID: 8
+Agent: main (Z.ai Code)
+Task: Vercel deployment setup — zero-manual-work pipeline (code → GitHub → Vercel), auto ENV, user pushes only
+
+Work Log:
+- Audited project: app is 100% client-side; only trivial /api route (NextResponse hello); zero API keys / env vars required anywhere → "Auto ENV setup" = nothing to configure, NODE_ENV auto-set by Vercel
+- next.config.ts: output:"standalone" now conditional (`process.env.VERCEL ? undefined : "standalone"`) — Vercel gets default optimized output, self-host keeps standalone
+- package.json: renamed to file-magic v1.0.0 + description + engines node>=20.9.0; build script = plain "next build" (Vercel-perfect); standalone copy moved to separate "build:standalone" for VPS/Docker
+- Created vercel.json: framework nextjs, installCommand "bun install" (bun.lock detected), buildCommand "next build"
+- Created README.md (Bengali-first): one-click "Deploy with Vercel" button (vercel.com/new/clone?repository-url=...), 3-step guide, features table, tech stack, local dev, self-hosting
+- Created .github/workflows/vercel-deploy.yml (optional CI/CD via workflow_dispatch + push; inert until user adds VERCEL_TOKEN/ORG/PROJECT secrets; Bengali instructions inline)
+- Security cleanup: .env was TRACKED in git → git rm --cached (contained only local SQLite path, no secrets); untracked all sandbox artifacts (.zscripts, db/custom.db, upload/, download/, tests/, examples/, mini-services/, Caddyfile) and gitignored them; verified pushed tree is clean
+- GitHub: verified token → created repo icedept56-png/file-magic (public) via API → set git identity icedept56-png + noreply email → pushed main (branch tracking origin/main); verified remote tree (15 entries, no .env); token used only in remote URL (.git/config, never committed)
+- Post-push: lint 0 errors, tsc clean for src/ (remaining errors only in untracked sandbox examples/skills), dev server Ready + GET / 200
+
+Stage Summary:
+- User flow now: Vercel → "Deploy with Vercel" button (or vercel.com/new + import icedept56-png/file-magic) → auto bun install + next build → LIVE. Every git push to main = automatic redeploy. Zero API keys, zero env vars, zero manual config.
+- Repo: https://github.com/icedept56-png/file-magic (public, topics-ready, clean history going forward)
+- Key artifacts: vercel.json, README.md (deploy button), .github/workflows/vercel-deploy.yml, conditional-output next.config.ts, hardened .gitignore
+- Note: token shared in chat should be rotated after setup (it grants repo write access)
