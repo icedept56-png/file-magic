@@ -56,7 +56,7 @@ async function htmlToPdfBlob(html: string, onProgress: ProgressFn): Promise<Blob
   el.setAttribute(
     "style",
     "position:fixed;left:-20000px;top:0;width:794px;background:#ffffff;color:#111827;" +
-      "padding:48px;font-family:'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif;" +
+      "padding:48px;font-family:var(--font-bengali),'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif;" +
       "font-size:15px;line-height:1.75;word-wrap:break-word;overflow-wrap:break-word;"
   );
   el.innerHTML = html;
@@ -86,7 +86,9 @@ async function htmlToPdfBlob(html: string, onProgress: ProgressFn): Promise<Blob
   if (totalPages > 80) {
     throw new Error("ডকুমেন্টটি অনেক বড় — ৮০ পেজের বেশি বানানো যাচ্ছে না");
   }
-  const pdf = new jsPDF({ unit: "px", format: "a4", compress: true });
+  // hotfixes:["px_scaling"] is REQUIRED — without it jsPDF's px unit uses a 96/72
+  // scale, making the A4 page only ~446×631 "px" units and clipping all content
+  const pdf = new jsPDF({ unit: "px", format: "a4", compress: true, hotfixes: ["px_scaling"] });
   for (let i = 0; i < totalPages; i++) {
     if (i > 0) pdf.addPage("a4", "p");
     const sliceH = Math.min(PAGE_H, canvas.height - i * PAGE_H);
@@ -200,7 +202,16 @@ export async function textToPdf(
 ): Promise<OutputFile[]> {
   const text = files.length ? await readText(files[0]) : String(opts.text ?? "");
   if (!text.trim()) throw new Error("আগে কিছু লিখুন অথবা .txt ফাইল দিন");
-  const html = `<div style="white-space:pre-wrap">${escapeHtml(text)}</div>`;
+  // html2canvas does NOT soft-wrap white-space:pre-wrap text (long lines get
+  // clipped) — so emit real flowing paragraphs instead; runs of 2+ spaces are
+  // preserved with &nbsp; and each newline becomes its own paragraph
+  const html = text
+    .split(/\r?\n/)
+    .map((line) => {
+      const safe = escapeHtml(line).replace(/ {2,}/g, (m) => "&nbsp;".repeat(m.length));
+      return `<p style="margin:0">${safe || "&nbsp;"}</p>`;
+    })
+    .join("");
   const blob = await htmlToPdfBlob(html, onProgress);
   onProgress(100, "সম্পন্ন");
   return [{ name: "document.pdf", blob }];
@@ -253,8 +264,10 @@ export async function htmlToPdf(
 ): Promise<OutputFile[]> {
   const html = files.length ? await readText(files[0]) : String(opts.text ?? "");
   if (!html.trim()) throw new Error("HTML কোড লিখুন অথবা .html ফাইল দিন");
-  // strip scripts — rendering them would be unsafe/pointless inside the PDF snapshot
-  const clean = html.replace(/<script[\s\S]*?<\/script>/gi, "");
+  // strip scripts AND inline event handlers — rendering them would be unsafe inside the PDF snapshot
+  const clean = html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
   const blob = await htmlToPdfBlob(clean, onProgress);
   onProgress(100, "সম্পন্ন");
   return [{ name: "document.pdf", blob }];

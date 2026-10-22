@@ -119,8 +119,11 @@ export async function compressPdf(
   }
   onProgress(60, "কম্প্রেস হচ্ছে...");
   const bytes = await doc.save({ useObjectStreams: true });
+  // never hand back a file that is BIGGER than the original — keep the smaller one
+  const original = new Uint8Array(await readArrayBuffer(file));
+  const final = bytes.length < original.length ? bytes : original;
   onProgress(100, "সম্পন্ন");
-  return [{ name: `${stripExt(file.name)}-compressed.pdf`, blob: pdfBlob(bytes) }];
+  return [{ name: `${stripExt(file.name)}-compressed.pdf`, blob: pdfBlob(final) }];
 }
 
 /* ─── 4. PDF → Images ──────────────────────────────────────────────────── */
@@ -219,7 +222,9 @@ export async function imagesToPdf(
 
     const landscape = natW > natH;
     if (!pdf) {
-      pdf = new jsPDF({ unit: "px", format: "a4", compress: true, orientation: landscape ? "l" : "p" });
+      // hotfixes:["px_scaling"] — without it jsPDF's px unit uses a 96/72 scale and
+      // the A4 page is only ~446×631 "px" units (content would overflow the page)
+      pdf = new jsPDF({ unit: "px", format: "a4", compress: true, orientation: landscape ? "l" : "p", hotfixes: ["px_scaling"] });
     } else {
       pdf.addPage("a4", landscape ? "l" : "p");
     }
@@ -301,10 +306,26 @@ export async function watermarkPdf(
   if (!ctx) throw new Error("ক্যানভাস তৈরি করা যায়নি");
   ctx.translate(512, 128);
   ctx.rotate(-Math.PI / 9);
-  ctx.font = "bold 88px 'Hind Siliguri', sans-serif";
+  // use the SAME font the app actually renders with — next/font registers a hashed family
+  // name, so the literal 'Hind Siliguri' would silently fall back to a random system font
+  const fontFamily =
+    (typeof document !== "undefined"
+      ? getComputedStyle(document.body).fontFamily.split(",")[0]
+      : "") || "sans-serif";
+  // shrink long text so it never clips outside the 1024px tile
+  let fontSize = 88;
+  const measure = (size: number) => {
+    ctx.font = `bold ${size}px ${fontFamily}, sans-serif`;
+    return ctx.measureText(text).width;
+  };
+  if (measure(fontSize) > 880) {
+    fontSize = Math.max(26, Math.floor((88 * 880) / measure(88)));
+    measure(fontSize);
+  }
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = `rgba(120,120,130,${opacity / 100})`;
+  // bake at full alpha — the real opacity is applied once via page.drawImage below
+  ctx.fillStyle = "rgba(120,120,130,1)";
   ctx.fillText(text, 0, 0);
   const pngBlob = await canvasToBlob(canvas, "image/png");
   const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
@@ -319,7 +340,7 @@ export async function watermarkPdf(
   }
   const img = await doc.embedPng(pngBytes);
   const pages = doc.getPages();
-  const drawOpacity = Math.min(0.9, opacity / 100 + 0.15);
+  const drawOpacity = Math.min(0.9, Math.max(0.08, opacity / 100));
   pages.forEach((page, idx) => {
     const { width, height } = page.getSize();
     const w = width * 0.7;
@@ -374,13 +395,8 @@ export async function deletePdfPages(
 
 /* ─── 9. Extract text ──────────────────────────────────────────────────── */
 
-export async function extractPdfText(
-  files: File[],
-  _opts: ToolOptions,
-  onProgress: ProgressFn
-): Promise<OutputFile[]> {
-  const file = files[0];
-  if (!file) throw new Error("একটি পিডিএফ দিন");
+/** shared: pull the text of every page (Bengali-safe) */
+async function extractPagesText(file: File, onProgress: ProgressFn): Promise<string[]> {
   const pdfjs = await getPdfjs();
   let doc: PdfJsDoc;
   try {
@@ -402,6 +418,17 @@ export async function extractPdfText(
     pageTexts.push(text);
     page.cleanup();
   }
+  return pageTexts;
+}
+
+export async function extractPdfText(
+  files: File[],
+  _opts: ToolOptions,
+  onProgress: ProgressFn
+): Promise<OutputFile[]> {
+  const file = files[0];
+  if (!file) throw new Error("একটি পিডিএফ দিন");
+  const pageTexts = await extractPagesText(file, onProgress);
   const all = pageTexts.join("\n\n").trim();
   if (!all) {
     throw new Error("এই পিডিএফে কোনো টেক্সট পাওয়া যায়নি — সম্ভবত এটি স্ক্যান করা ছবি");
@@ -410,4 +437,33 @@ export async function extractPdfText(
   return [
     { name: `${stripExt(file.name)}.txt`, blob: new Blob([all], { type: "text/plain;charset=utf-8" }) },
   ];
+}
+
+/* ─── 10. PDF → Word ───────────────────────────────────────────────────── */
+
+export async function pdfToDocx(
+  files: File[],
+  _opts: ToolOptions,
+  onProgress: ProgressFn
+): Promise<OutputFile[]> {
+  const file = files[0];
+  if (!file) throw new Error("একটি পিডিএফ দিন");
+  const pageTexts = await extractPagesText(file, onProgress);
+  const all = pageTexts.join("\n\n").trim();
+  if (!all) {
+    throw new Error(
+      "এই পিডিএফে কোনো লেখা পাওয়া যায়নি — স্ক্যান করা পিডিএফ থেকে সরাসরি Word বানানো যায় না"
+    );
+  }
+  onProgress(92, "Word ডকুমেন্ট তৈরি হচ্ছে...");
+  const { Document, Packer, Paragraph, TextRun } = await import("docx");
+  const paragraphs = all
+    .split(/\r?\n/)
+    .flatMap((chunk) => chunk.split(/(?<=।|[.!?])\s+/))
+    .filter((s) => s.trim().length > 0)
+    .map((line) => new Paragraph({ children: [new TextRun(line.trim())] }));
+  const doc = new Document({ sections: [{ children: paragraphs }] });
+  const blob = await Packer.toBlob(doc);
+  onProgress(100, "সম্পন্ন");
+  return [{ name: `${stripExt(file.name)}.docx`, blob }];
 }

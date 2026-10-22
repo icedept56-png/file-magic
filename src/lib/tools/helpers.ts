@@ -1,5 +1,12 @@
 /** Shared helpers for file tool processors (client-side only) */
 
+const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
+
+/** Convert latin digits to Bengali digits (UI nicety) */
+export function toBn(value: number | string): string {
+  return String(value).replace(/\d/g, (d) => BN_DIGITS[Number(d)]);
+}
+
 export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "—";
   if (bytes === 0) return "0 B";

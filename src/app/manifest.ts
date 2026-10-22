@@ -35,5 +35,31 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "maskable",
       },
     ],
+    shortcuts: [
+      {
+        name: "পিডিএফ মার্জ",
+        short_name: "মার্জ",
+        url: "/?tool=merge-pdf",
+        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+      },
+      {
+        name: "ইমেজ কনভার্টার",
+        short_name: "কনভার্ট",
+        url: "/?tool=image-convert",
+        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+      },
+      {
+        name: "QR কোড বানান",
+        short_name: "QR",
+        url: "/?tool=qr-generator",
+        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+      },
+      {
+        name: "টেক্সট → পিডিএফ",
+        short_name: "টেক্সট",
+        url: "/?tool=text-to-pdf",
+        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+      },
+    ],
   };
 }

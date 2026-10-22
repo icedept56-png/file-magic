@@ -55,6 +55,8 @@ export interface ToolDef {
   name: string; // Bengali display name
   nameEn: string; // for search
   desc: string; // Bengali short description
+  /** extra search terms (english aliases like "jpg", "excel", "word") */
+  keywords?: string[];
   category: CategoryId;
   icon: LucideIcon;
   /** gradient classes for the icon tile, e.g. "from-rose-500 to-red-600" */

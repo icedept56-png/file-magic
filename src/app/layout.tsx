@@ -31,6 +31,20 @@ export const metadata: Metadata = {
   ],
   applicationName: "ফাইল ম্যাজিক",
   manifest: "/manifest.webmanifest",
+  openGraph: {
+    title: "ফাইল ম্যাজিক — সব ফাইলের সম্পূর্ণ সমাধান",
+    description:
+      "PDF, Word, Excel, ছবি, ZIP — সব ধরনের ফাইল কনভার্ট, এডিট, কম্প্রেস করুন এক জায়গায়। ১০০% প্রাইভেট, সব প্রসেসিং আপনার ব্রাউজারেই।",
+    type: "website",
+    locale: "bn_BD",
+    siteName: "ফাইল ম্যাজিক",
+  },
+  twitter: {
+    card: "summary",
+    title: "ফাইল ম্যাজিক — সব ফাইলের সম্পূর্ণ সমাধান",
+    description:
+      "PDF, Word, Excel, ছবি, ZIP — সব ধরনের ফাইল কনভার্ট, এডিট, কম্প্রেস করুন এক জায়গায়।",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

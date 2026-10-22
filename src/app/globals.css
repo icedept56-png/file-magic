@@ -196,8 +196,37 @@
   animation: fm-ping-soft 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
+/* premium light sweep across primary buttons on hover */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+.btn-shine:hover::after {
+  transform: translateX(120%);
+}
+.btn-shine:disabled::after {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fm-orb-1, .fm-orb-2, .fm-orb-3, .fm-marquee, .fm-ping {
     animation: none;
+  }
+  .btn-shine::after {
+    display: none;
   }
 }

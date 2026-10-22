@@ -1,15 +1,17 @@
 "use client";
 
-import type { KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 
 import { motion } from "framer-motion";
-import { Search, ShieldCheck, Sparkles, WifiOff, Zap, LayoutGrid } from "lucide-react";
+import { Search, ShieldCheck, Sparkles, WifiOff, Zap, LayoutGrid, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import { toBn } from "@/lib/tools/helpers";
 import { TOOL_COUNT } from "@/lib/tools/registry";
 import { useAppStore } from "@/store/app-store";
 
 const MARQUEE_ITEMS = [
+  "PDF → Word",
   "PDF → JPG",
   "DOCX → PDF",
   "XLSX → CSV",
@@ -27,7 +29,7 @@ const MARQUEE_ITEMS = [
 ];
 
 const STATS: { icon: typeof Zap; label: string }[] = [
-  { icon: LayoutGrid, label: `${TOOL_COUNT}+ টুল` },
+  { icon: LayoutGrid, label: `${toBn(TOOL_COUNT)}+ টুল` },
   { icon: ShieldCheck, label: "১০০% প্রাইভেট" },
   { icon: Zap, label: "বজ্রগতি" },
   { icon: WifiOff, label: "অফলাইনেও চলে" },
@@ -36,12 +38,32 @@ const STATS: { icon: typeof Zap; label: string }[] = [
 export function Hero() {
   const search = useAppStore((s) => s.search);
   const setSearch = useAppStore((s) => s.setSearch);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       document.getElementById("tools")?.scrollIntoView({ behavior: "smooth" });
     }
   };
+
+  // press "/" anywhere to jump into search (premium keyboard shortcut)
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+      if (e.key === "/" && !typing) {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <section className="pb-8 pt-14 text-center sm:pt-20">
@@ -53,7 +75,7 @@ export function Hero() {
         >
           <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-1.5 text-sm text-zinc-300">
             <Sparkles className="h-4 w-4 text-fuchsia-400" />
-            {TOOL_COUNT}টি টুল • ১০০% প্রাইভেট • সম্পূর্ণ ফ্রি
+            {toBn(TOOL_COUNT)}টি টুল • ১০০% প্রাইভেট • সম্পূর্ণ ফ্রি
           </span>
 
           <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
@@ -77,17 +99,43 @@ export function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.08 }}
         >
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500" />
+          <div className="group relative">
+            {/* animated gradient halo */}
+            <div
+              aria-hidden="true"
+              className="absolute -inset-px rounded-2xl bg-gradient-to-r from-fuchsia-500/40 via-violet-500/40 to-orange-400/40 opacity-0 blur-md transition-opacity duration-300 group-focus-within:opacity-100"
+            />
+            <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-zinc-500" />
             <Input
+              ref={inputRef}
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="টুল খুঁজুন... (যেমন: পিডিএফ, ছবি, কম্প্রেস)"
               aria-label="টুল খুঁজুন"
-              className="h-14 rounded-2xl border-white/10 bg-white/[0.05] pl-12 pr-4 text-base placeholder:text-zinc-500 focus-visible:ring-fuchsia-500/50"
+              className="relative h-14 rounded-2xl border-white/10 bg-white/[0.05] pl-12 pr-24 text-base placeholder:text-zinc-500 focus-visible:ring-fuchsia-500/50"
             />
+            {search ? (
+              <button
+                type="button"
+                aria-label="সার্চ মুছুন"
+                onClick={() => {
+                  setSearch("");
+                  inputRef.current?.focus();
+                }}
+                className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/10 bg-white/[0.06] p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : (
+              <kbd
+                aria-hidden="true"
+                className="absolute right-3.5 top-1/2 z-10 hidden -translate-y-1/2 rounded-md border border-white/10 bg-white/[0.06] px-2 py-0.5 font-mono text-xs text-zinc-500 sm:block"
+              >
+                /
+              </kbd>
+            )}
           </div>
         </motion.div>
 

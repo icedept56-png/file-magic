@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { SearchX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { toBn } from "@/lib/tools/helpers";
 import { filterTools } from "@/lib/tools/registry";
 import { useAppStore } from "@/store/app-store";
 import { ToolCard } from "@/components/file-hub/tool-card";
@@ -26,7 +27,7 @@ export function ToolGrid() {
         <div className="mb-6 flex items-end justify-between">
           <h2 className="text-2xl font-bold text-zinc-50">সব টুল একসাথে</h2>
           <span className="text-sm text-zinc-500">
-            {filtered.length} টি টুল
+            {toBn(filtered.length)} টি টুল
           </span>
         </div>
 

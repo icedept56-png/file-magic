@@ -22,10 +22,10 @@ export function Navbar() {
           <button
             type="button"
             onClick={goHome}
-            className="flex items-center gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60"
+            className="group flex items-center gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60"
             aria-label="ফাইল ম্যাজিক — হোমে ফিরে যান"
           >
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-fuchsia-500 via-violet-500 to-orange-400 shadow-lg shadow-fuchsia-500/30">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-fuchsia-500 via-violet-500 to-orange-400 shadow-lg shadow-fuchsia-500/30 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-105">
               <Wand2 className="h-5 w-5 text-white" />
             </span>
             <span className="flex items-center gap-2">
@@ -56,6 +56,11 @@ export function Navbar() {
           </div>
         </nav>
       </div>
+      {/* gradient hairline accent */}
+      <div
+        aria-hidden="true"
+        className="h-px bg-gradient-to-r from-transparent via-fuchsia-500/30 to-transparent"
+      />
     </header>
   );
 }

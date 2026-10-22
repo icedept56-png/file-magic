@@ -93,9 +93,10 @@ export async function csvToXlsx(
   onProgress(92, "এক্সেল ফাইল তৈরি হচ্ছে...");
   const out: Uint8Array = XLSX.write(newWb, { bookType: "xlsx", type: "array" });
   onProgress(100, "সম্পন্ন");
+  const outName = files.length === 1 ? `${stripExt(files[0].name)}.xlsx` : "combined.xlsx";
   return [
     {
-      name: "combined.xlsx",
+      name: outName,
       blob: new Blob([out as unknown as BlobPart], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
@@ -149,7 +150,13 @@ export async function createZip(
   if (!files.length) throw new Error("ZIP করতে অন্তত একটি ফাইল দিন");
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
-  files.forEach((f) => zip.file(f.name, f));
+  // JSZip silently OVERWRITES entries with the same name — dedupe to avoid data loss
+  const used = new Set<string>();
+  for (const f of files) {
+    const base = safeName(f.name) || "file";
+    const name = uniqueName(base, used);
+    zip.file(name, f);
+  }
   const level = Math.min(9, Math.max(0, Number(opts.level ?? 6)));
   const blob: Blob = await zip.generateAsync<"blob">(
     level === 0

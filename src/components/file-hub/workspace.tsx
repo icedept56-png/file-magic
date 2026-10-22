@@ -1,7 +1,6 @@
 "use client";
 
-import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
@@ -11,7 +10,13 @@ import {
   Download,
   File as FileIcon,
   FileDown,
+  FileSpreadsheet,
+  FileText,
+  FileType2,
+  ImageIcon,
   Loader2,
+  Music,
+  Package,
   RotateCcw,
   SearchX,
   UploadCloud,
@@ -35,13 +40,30 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { downloadBlob, formatBytes } from "@/lib/tools/helpers";
+import { downloadBlob, formatBytes, toBn } from "@/lib/tools/helpers";
 import { getTool } from "@/lib/tools/registry";
 import type { OutputFile, ToolOptionField } from "@/lib/tools/types";
 import { useAppStore } from "@/store/app-store";
 
 type OptValue = string | number | boolean;
 type Opts = Record<string, OptValue>;
+
+/** pick a matching icon + tint for a file, by extension */
+function fileVisual(name: string): { Icon: typeof FileIcon; className: string } {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return { Icon: FileText, className: "text-rose-400" };
+  if (["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"].includes(ext))
+    return { Icon: ImageIcon, className: "text-fuchsia-400" };
+  if (["doc", "docx", "txt", "md", "html", "htm"].includes(ext))
+    return { Icon: FileType2, className: "text-orange-400" };
+  if (["xls", "xlsx", "csv"].includes(ext))
+    return { Icon: FileSpreadsheet, className: "text-emerald-400" };
+  if (["zip", "rar", "7z", "tar", "gz"].includes(ext))
+    return { Icon: Package, className: "text-teal-400" };
+  if (["mp3", "wav", "ogg", "m4a", "flac"].includes(ext))
+    return { Icon: Music, className: "text-cyan-400" };
+  return { Icon: FileIcon, className: "text-zinc-400" };
+}
 
 export function Workspace() {
   const activeToolId = useAppStore((s) => s.activeToolId);
@@ -60,6 +82,8 @@ export function Workspace() {
   const [zipping, setZipping] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const dragDepth = useRef(0);
 
   const defaultOpts = (t: NonNullable<typeof tool>): Opts =>
     Object.fromEntries(t.options.map((o) => [o.key, o.default ?? ""] as const));
@@ -75,7 +99,18 @@ export function Workspace() {
     setProgressLabel("");
     setBusy(false);
     setZipping(false);
-  }, [activeToolId]);
+  }, [tool]);
+
+  // a dropped file outside the dropzone must never navigate the browser away
+  useEffect(() => {
+    const prevent = (e: DragEvent) => e.preventDefault();
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => {
+      window.removeEventListener("dragover", prevent);
+      window.removeEventListener("drop", prevent);
+    };
+  }, []);
 
   const addFiles = (list: FileList | null) => {
     if (!tool || !list || list.length === 0) return;
@@ -139,6 +174,10 @@ export function Workspace() {
       if (!out?.length) throw new Error("কোনো ফাইল তৈরি হয়নি");
       setResults(out);
       toast.success("সফলভাবে সম্পন্ন হয়েছে!");
+      // bring the fresh results into view
+      requestAnimationFrame(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "কিছু একটা সমস্যা হয়েছে";
       setError(msg);
@@ -222,6 +261,14 @@ export function Workspace() {
   const textareaFields = tool.options.filter((f) => f.type === "textarea");
   const settingFields = tool.options.filter((f) => f.type !== "textarea");
 
+  // overall size delta shown in the success banner (only when output is smaller)
+  const totalIn = files.reduce((s, f) => s + f.size, 0);
+  const totalOut = results?.reduce((s, r) => s + r.blob.size, 0) ?? 0;
+  const savedPct =
+    totalIn > 0 && totalOut > 0 && totalOut < totalIn
+      ? Math.round(((totalIn - totalOut) / totalIn) * 100)
+      : 0;
+
   const renderField = (f: ToolOptionField) => {
     switch (f.type) {
       case "select":
@@ -251,7 +298,7 @@ export function Workspace() {
             <div className="flex items-center">
               <Label className="text-xs text-zinc-400">{f.label}</Label>
               <span className="ml-auto rounded-md bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-fuchsia-400">
-                {Number(opts[f.key] ?? f.default ?? f.min ?? 0)}
+                {toBn(Number(opts[f.key] ?? f.default ?? f.min ?? 0))}
                 {f.unit ?? ""}
               </span>
             </div>
@@ -364,13 +411,20 @@ export function Workspace() {
             aria-label="ফাইল যোগ করুন"
             onClick={openFilePicker}
             onKeyDown={handleDropzoneKeyDown}
-            onDragOver={(e) => {
+            onDragOver={(e) => e.preventDefault()}
+            onDragEnter={(e) => {
               e.preventDefault();
+              dragDepth.current += 1;
               setDragging(true);
             }}
-            onDragLeave={() => setDragging(false)}
+            onDragLeave={() => {
+              // depth counting: child elements fire dragleave too — flicker fix
+              dragDepth.current = Math.max(0, dragDepth.current - 1);
+              if (dragDepth.current === 0) setDragging(false);
+            }}
             onDrop={(e) => {
               e.preventDefault();
+              dragDepth.current = 0;
               setDragging(false);
               addFiles(e.dataTransfer?.files ?? null);
             }}
@@ -420,33 +474,36 @@ export function Workspace() {
         {files.length > 0 && (
           <div className="fm-scroll max-h-64 space-y-2 overflow-y-auto">
             <AnimatePresence initial={false}>
-              {files.map((f, i) => (
-                <motion.div
-                  key={`${f.name}-${f.size}-${i}`}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2"
-                >
-                  <FileIcon className="h-4 w-4 shrink-0 text-fuchsia-400" />
-                  <span className="flex-1 truncate text-sm text-zinc-200">
-                    {f.name}
-                  </span>
-                  <span className="shrink-0 text-xs text-zinc-500">
-                    {formatBytes(f.size)}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeFile(i)}
-                    aria-label="সরান"
-                    className="h-7 w-7 shrink-0 text-zinc-500 hover:bg-white/10 hover:text-white"
+              {files.map((f, i) => {
+                const visual = fileVisual(f.name);
+                return (
+                  <motion.div
+                    key={`${f.name}-${f.size}-${i}`}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2"
                   >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </motion.div>
-              ))}
+                    <visual.Icon className={`h-4 w-4 shrink-0 ${visual.className}`} />
+                    <span className="flex-1 truncate text-sm text-zinc-200">
+                      {f.name}
+                    </span>
+                    <span className="shrink-0 text-xs text-zinc-500">
+                      {formatBytes(f.size)}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeFile(i)}
+                      aria-label="সরান"
+                      className="h-7 w-7 shrink-0 text-zinc-500 hover:bg-white/10 hover:text-white"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           </div>
         )}
@@ -472,11 +529,17 @@ export function Workspace() {
 
         {/* progress */}
         {busy && (
-          <div className="space-y-2">
-            <Progress value={progress} className="h-2" />
+          <div className="space-y-2" role="status" aria-live="polite">
+            <Progress
+              value={progress}
+              className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-fuchsia-500 [&>div]:via-violet-500 [&>div]:to-orange-400"
+            />
             <p className="flex items-center justify-center gap-2 text-xs text-zinc-400">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               {progressLabel || "কাজ চলছে..."}
+              <span className="font-medium text-fuchsia-300">
+                {toBn(Math.round(progress))}%
+              </span>
             </p>
           </div>
         )}
@@ -497,7 +560,7 @@ export function Workspace() {
         <Button
           onClick={runProcess}
           disabled={!canProcess || busy}
-          className="h-12 w-full rounded-xl bg-gradient-to-r from-fuchsia-500 via-violet-500 to-orange-400 text-base font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn-shine h-12 w-full rounded-xl bg-gradient-to-r from-fuchsia-500 via-violet-500 to-orange-400 text-base font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? (
             <>
@@ -515,20 +578,26 @@ export function Workspace() {
         {/* results */}
         {results && !busy && (
           <motion.div
+            ref={resultsRef}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
             className="space-y-3"
           >
-            <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
               <span className="relative flex h-5 w-5 shrink-0 items-center justify-center">
                 <span className="fm-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
                 <CheckCircle2 className="relative h-5 w-5" />
               </span>
               সম্পন্ন! নিচের ফাইলগুলো ডাউনলোড করুন
+              {savedPct > 0 && (
+                <span className="ml-auto rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
+                  {toBn(savedPct)}% ছোট হয়েছে
+                </span>
+              )}
             </div>
 
-            <div className="space-y-2">
+            <div className="fm-scroll max-h-72 space-y-2 overflow-y-auto pr-1">
               {results.map((r, i) => (
                 <div
                   key={`${r.name}-${i}`}

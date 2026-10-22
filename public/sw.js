@@ -1,8 +1,33 @@
 /* ফাইল ম্যাজিক — Service Worker (offline support) */
-const CACHE = "file-magic-v2";
+const CACHE = "file-magic-v3";
 
-self.addEventListener("install", () => {
-  self.skipWaiting();
+// core shell precached at install → the app opens offline even on FIRST run
+const PRECACHE = [
+  "/",
+  "/manifest.webmanifest",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/pdf.worker.min.mjs",
+];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(CACHE);
+      // never fail install because one optional asset 404'd
+      await Promise.all(
+        PRECACHE.map(async (url) => {
+          try {
+            const res = await fetch(url);
+            if (res && res.ok) await cache.put(url, res);
+          } catch {
+            /* skip */
+          }
+        })
+      );
+      self.skipWaiting();
+    })()
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -35,6 +60,11 @@ async function networkFirst(request) {
   } catch (err) {
     const cached = await cache.match(request);
     if (cached) return cached;
+    // navigation offline fallback → precached shell
+    if (request.mode === "navigate") {
+      const shell = await caches.match("/");
+      if (shell) return shell;
+    }
     throw err;
   }
 }

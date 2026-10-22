@@ -6,11 +6,13 @@ import { useAppStore } from "@/store/app-store";
 import { Background } from "@/components/file-hub/background";
 import { Navbar } from "@/components/file-hub/navbar";
 import { Hero } from "@/components/file-hub/hero";
+import { RecentTools } from "@/components/file-hub/recent-tools";
 import { CategoryTabs } from "@/components/file-hub/category-tabs";
 import { ToolGrid } from "@/components/file-hub/tool-grid";
 import { Features } from "@/components/file-hub/features";
 import { Workspace } from "@/components/file-hub/workspace";
 import { Footer } from "@/components/file-hub/footer";
+import { HistorySync } from "@/components/file-hub/history-sync";
 
 export default function Home() {
   const view = useAppStore((s) => s.view);
@@ -18,6 +20,7 @@ export default function Home() {
   return (
     <div className="relative flex min-h-screen flex-col bg-[#07070d] text-zinc-100">
       <Background />
+      <HistorySync />
       <Navbar />
       <main className="flex-1">
         <AnimatePresence mode="wait">
@@ -30,6 +33,7 @@ export default function Home() {
               transition={{ duration: 0.2 }}
             >
               <Hero />
+              <RecentTools />
               <CategoryTabs />
               <ToolGrid />
               <Features />
