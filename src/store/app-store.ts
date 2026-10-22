@@ -3,9 +3,11 @@
 import { create } from "zustand";
 
 export type View = "home" | "tool";
+export type Lang = "bn" | "en";
 
 const RECENT_KEY = "fm-recent-tools";
 const RECENT_MAX = 6;
+const LANG_KEY = "fm-lang";
 
 function loadRecent(): string[] {
   if (typeof window === "undefined") return [];
@@ -26,6 +28,19 @@ function saveRecent(ids: string[]) {
   }
 }
 
+function loadLang(): Lang {
+  if (typeof window === "undefined") return "bn";
+  return window.localStorage.getItem(LANG_KEY) === "en" ? "en" : "bn";
+}
+
+function saveLang(lang: Lang) {
+  try {
+    window.localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    /* ignore */
+  }
+}
+
 const scrollTop = () => {
   if (typeof window !== "undefined") {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
@@ -38,12 +53,14 @@ interface AppState {
   search: string;
   category: string;
   recent: string[];
+  lang: Lang;
   openTool: (id: string) => void;
   goHome: () => void;
   setSearch: (s: string) => void;
   setCategory: (c: string) => void;
   hydrate: () => void;
   recordRecent: (id: string) => void;
+  setLang: (l: Lang) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -52,6 +69,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   search: "",
   category: "all",
   recent: [],
+  lang: "bn",
   openTool: (id) => {
     // keep the user's search/category so returning home restores their context
     get().recordRecent(id);
@@ -72,12 +90,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setSearch: (search) => set({ search }),
   setCategory: (category) => set({ category }),
-  /** restore recent tools from localStorage (called once on mount) */
-  hydrate: () => set({ recent: loadRecent() }),
+  /** restore recent tools + language from localStorage (called once on mount) */
+  hydrate: () => {
+    const lang = loadLang();
+    if (typeof document !== "undefined") document.documentElement.lang = lang;
+    set({ recent: loadRecent(), lang });
+  },
   /** remember a tool as recently used (without touching view/history) */
   recordRecent: (id) => {
     const recent = [id, ...get().recent.filter((r) => r !== id)].slice(0, RECENT_MAX);
     saveRecent(recent);
     set({ recent });
+  },
+  setLang: (lang) => {
+    saveLang(lang);
+    if (typeof document !== "undefined") document.documentElement.lang = lang;
+    set({ lang });
   },
 }));

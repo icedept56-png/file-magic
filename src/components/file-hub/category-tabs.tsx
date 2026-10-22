@@ -3,49 +3,44 @@
 import { motion } from "framer-motion";
 
 import { CATEGORIES } from "@/lib/tools/registry";
+import { useT } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 
+/** Mobile-only horizontal category chips (desktop uses the sidebar) */
 export function CategoryTabs() {
+  const { t, lang } = useT();
   const category = useAppStore((s) => s.category);
   const setCategory = useAppStore((s) => s.setCategory);
+  const view = useAppStore((s) => s.view);
+  const goHome = useAppStore((s) => s.goHome);
+
+  const select = (id: string) => {
+    if (view === "tool") goHome();
+    setCategory(id);
+  };
 
   return (
-    <section className="mt-4">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-        <motion.div
-          className="flex flex-wrap justify-center gap-2"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: {},
-            visible: { transition: { staggerChildren: 0.03 } },
-          }}
-          role="group"
-          aria-label="ক্যাটাগরি বাছাই"
-        >
-          {CATEGORIES.map((c) => {
-            const active = category === c.id;
-            return (
-              <motion.button
-                key={c.id}
-                type="button"
-                onClick={() => setCategory(c.id)}
-                aria-pressed={active}
-                variants={{
-                  hidden: { opacity: 0, y: 10 },
-                  visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
-                }}
-                className={
-                  active
-                    ? `rounded-full bg-gradient-to-r ${c.gradient} px-4 py-2 text-sm font-medium text-white shadow-lg transition`
-                    : "rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60"
-                }
-              >
-                {c.label}
-              </motion.button>
-            );
-          })}
-        </motion.div>
+    <section className="mt-6 lg:hidden" aria-label={t("pickCategory")}>
+      <div className="fm-scroll mx-auto flex w-full max-w-6xl gap-2 overflow-x-auto px-4 pb-1 sm:px-6">
+        {CATEGORIES.map((c) => {
+          const active = category === c.id && view === "home";
+          return (
+            <motion.button
+              key={c.id}
+              type="button"
+              onClick={() => select(c.id)}
+              aria-pressed={active}
+              whileTap={{ scale: 0.96 }}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+                active
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-emerald-500/25"
+                  : "border border-emerald-900/[0.07] bg-white text-emerald-900/70 hover:bg-emerald-50"
+              }`}
+            >
+              {lang === "en" ? (c.labelEn ?? c.label) : c.label}
+            </motion.button>
+          );
+        })}
       </div>
     </section>
   );

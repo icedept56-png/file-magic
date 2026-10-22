@@ -30,7 +30,8 @@ export type CategoryId =
 export interface Category {
   id: CategoryId | "all";
   label: string; // Bengali label
-  gradient: string; // tailwind gradient classes for the chip when active
+  labelEn?: string; // English label
+  gradient: string; // tailwind classes for the chip/tile when active
 }
 
 /** How the tool takes input */
@@ -39,13 +40,16 @@ export type InputMode = "file" | "text" | "both";
 export interface ToolOptionField {
   key: string;
   label: string; // Bengali
+  labelEn?: string; // English label (falls back to label)
   type: "select" | "text" | "number" | "range" | "checkbox" | "textarea";
-  options?: { value: string; label: string }[];
+  options?: { value: string; label: string; labelEn?: string }[];
   default?: string | number | boolean;
   min?: number;
   max?: number;
   step?: number;
   placeholder?: string;
+  /** English placeholder (falls back to placeholder) */
+  placeholderEn?: string;
   /** show this unit after range value */
   unit?: string;
 }
@@ -53,8 +57,9 @@ export interface ToolOptionField {
 export interface ToolDef {
   id: string;
   name: string; // Bengali display name
-  nameEn: string; // for search
+  nameEn: string; // English display name (also used for search)
   desc: string; // Bengali short description
+  descEn?: string; // English short description
   /** extra search terms (english aliases like "jpg", "excel", "word") */
   keywords?: string[];
   category: CategoryId;
@@ -72,8 +77,12 @@ export interface ToolDef {
   inputMode: InputMode;
   /** Bengali hint about accepted file types, shown in the dropzone */
   hint: string;
+  /** English hint (falls back to hint) */
+  hintEn?: string;
   /** Bengali label for the action button, default "প্রসেস করুন" */
   actionLabel: string;
+  /** English action label (falls back to actionLabel) */
+  actionLabelEn?: string;
   options: ToolOptionField[];
   process: ProcessFn;
 }

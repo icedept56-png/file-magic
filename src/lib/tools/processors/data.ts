@@ -1,6 +1,7 @@
 /** Data processors — xlsx, jszip, qrcode, base64/json utilities */
 import type { OutputFile, ToolOptions, ProgressFn } from "../types";
 import { readArrayBuffer, readText, stripExt, safeName, bufferToBase64, base64ToUint8, canvasToBlob } from "../helpers";
+import { err, pLabel } from "../messages";
 
 /** Case-insensitive unique name helper (appends -2, -3, ... on collision) */
 function uniqueName(base: string, used: Set<string>): string {
@@ -29,21 +30,21 @@ export async function xlsxToCsv(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const file = files[0];
-  if (!file) throw new Error("একটি এক্সেল ফাইল দিন");
+  if (!file) throw err("giveExcel");
   const XLSX = await import("xlsx");
   let wb: ReturnType<typeof XLSX.read>;
   try {
     wb = XLSX.read(await readArrayBuffer(file), { type: "array" });
   } catch {
-    throw new Error("এক্সেল ফাইলটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে");
+    throw err("excelCorrupt");
   }
   const names = wb.SheetNames;
-  if (!names.length) throw new Error("ফাইলের ভেতরে কোনো শিট নেই");
+  if (!names.length) throw err("noSheets");
   const base = stripExt(file.name);
 
   if (names.length === 1) {
     const csv = XLSX.utils.sheet_to_csv(wb.Sheets[names[0]]);
-    onProgress(100, "সম্পন্ন");
+    onProgress(100, pLabel("pDone"));
     return [{ name: `${base}.csv`, blob: new Blob([csv], { type: "text/csv;charset=utf-8" }) }];
   }
 
@@ -51,16 +52,16 @@ export async function xlsxToCsv(
   const zip = new JSZip();
   const used = new Set<string>();
   for (let i = 0; i < names.length; i++) {
-    onProgress(Math.round((i / names.length) * 88), `শিট ${i + 1}/${names.length}`);
+    onProgress(Math.round((i / names.length) * 88), pLabel("pSheet", i + 1, names.length));
     const entry = uniqueName(
       names[i].replace(/[\[\]:*?/\\]+/g, " ").trim().slice(0, 60) || `sheet-${i + 1}`,
       used
     );
     zip.file(`${entry}.csv`, XLSX.utils.sheet_to_csv(wb.Sheets[names[i]]));
   }
-  onProgress(92, "ZIP বানানো হচ্ছে...");
+  onProgress(92, pLabel("pZipMaking"));
   const zipBlob: Blob = await zip.generateAsync<"blob">({ compression: "STORE" });
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: `${base}-csv.zip`, blob: zipBlob }];
 }
 
@@ -71,28 +72,28 @@ export async function csvToXlsx(
   _opts: ToolOptions,
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
-  if (!files.length) throw new Error("অন্তত একটি CSV ফাইল দিন");
+  if (!files.length) throw err("needCsv");
   const XLSX = await import("xlsx");
   const newWb = XLSX.utils.book_new();
   const used = new Set<string>();
 
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    onProgress(Math.round((i / files.length) * 85), `ফাইল ${i + 1}/${files.length}`);
+    onProgress(Math.round((i / files.length) * 85), pLabel("pFile", i + 1, files.length));
     let wb: ReturnType<typeof XLSX.read>;
     try {
       wb = XLSX.read(await readText(f), { type: "string", raw: false });
     } catch {
-      throw new Error(`"${f.name}" পড়া যায়নি — এটি কি সঠিক CSV ফাইল?`);
+      throw err("csvOpenFail", f.name);
     }
     const ws = wb.Sheets[wb.SheetNames[0]];
-    if (!ws) throw new Error(`"${f.name}"-এ কোনো ডেটা পাওয়া যায়নি`);
+    if (!ws) throw err("csvNoData", f.name);
     XLSX.utils.book_append_sheet(newWb, ws, sheetNameFor(f.name, used));
   }
 
-  onProgress(92, "এক্সেল ফাইল তৈরি হচ্ছে...");
+  onProgress(92, pLabel("pExcelMaking"));
   const out: Uint8Array = XLSX.write(newWb, { bookType: "xlsx", type: "array" });
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   const outName = files.length === 1 ? `${stripExt(files[0].name)}.xlsx` : "combined.xlsx";
   return [
     {
@@ -112,16 +113,16 @@ export async function xlsxToJson(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const file = files[0];
-  if (!file) throw new Error("একটি এক্সেল ফাইল দিন");
+  if (!file) throw err("giveExcel");
   const XLSX = await import("xlsx");
   let wb: ReturnType<typeof XLSX.read>;
   try {
     wb = XLSX.read(await readArrayBuffer(file), { type: "array" });
   } catch {
-    throw new Error("এক্সেল ফাইলটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে");
+    throw err("excelCorrupt");
   }
   const names = wb.SheetNames;
-  if (!names.length) throw new Error("ফাইলের ভেতরে কোনো শিট নেই");
+  if (!names.length) throw err("noSheets");
 
   let json: string;
   if (names.length === 1) {
@@ -129,12 +130,12 @@ export async function xlsxToJson(
   } else {
     const obj: Record<string, unknown[]> = {};
     for (let i = 0; i < names.length; i++) {
-      onProgress(Math.round((i / names.length) * 85) + 5, `শিট ${i + 1}/${names.length}`);
+      onProgress(Math.round((i / names.length) * 85) + 5, pLabel("pSheet", i + 1, names.length));
       obj[names[i]] = XLSX.utils.sheet_to_json(wb.Sheets[names[i]], { defval: null });
     }
     json = JSON.stringify(obj, null, 2);
   }
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [
     { name: `${stripExt(file.name)}.json`, blob: new Blob([json], { type: "application/json;charset=utf-8" }) },
   ];
@@ -147,7 +148,7 @@ export async function createZip(
   opts: ToolOptions,
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
-  if (!files.length) throw new Error("ZIP করতে অন্তত একটি ফাইল দিন");
+  if (!files.length) throw err("zipNeed1");
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
   // JSZip silently OVERWRITES entries with the same name — dedupe to avoid data loss
@@ -162,9 +163,9 @@ export async function createZip(
     level === 0
       ? { compression: "STORE" }
       : { compression: "DEFLATE", compressionOptions: { level } },
-    (meta) => onProgress(Math.round(meta.percent), "ZIP তৈরি হচ্ছে...")
+    (meta) => onProgress(Math.round(meta.percent), pLabel("pZipMaking2"))
   );
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: "archive.zip", blob }];
 }
 
@@ -176,23 +177,23 @@ export async function extractZip(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const file = files[0];
-  if (!file) throw new Error("একটি ZIP ফাইল দিন");
+  if (!file) throw err("giveZip");
   const JSZip = (await import("jszip")).default;
   let zip: Awaited<ReturnType<typeof JSZip.loadAsync>>;
   try {
     zip = await JSZip.loadAsync(await readArrayBuffer(file));
   } catch {
-    throw new Error("ZIP ফাইলটি খোলা যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে");
+    throw err("zipOpenFail");
   }
   const entries = Object.values(zip.files).filter((e) => !e.dir);
-  if (entries.length === 0) throw new Error("ZIP ফাইলটি খালি বা পড়া যায়নি");
-  if (entries.length > 300) throw new Error("ZIP-এ ৩০০+ ফাইল আছে — এতগুলো একসাথে বের করা যাবে না");
+  if (entries.length === 0) throw err("zipEmpty");
+  if (entries.length > 300) throw err("zipTooMany");
 
   const out: OutputFile[] = [];
   const used = new Set<string>();
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
-    onProgress(Math.round((i / entries.length) * 92) + 4, `ফাইল ${i + 1}/${entries.length}`);
+    onProgress(Math.round((i / entries.length) * 92) + 4, pLabel("pFile", i + 1, entries.length));
     const blob = await entry.async("blob");
     const base = safeName(entry.name.split("/").pop() || `file-${i + 1}`);
     // nested paths are flattened; duplicates get an index prefix
@@ -200,7 +201,7 @@ export async function extractZip(
     used.add(name);
     out.push({ name, blob: new Blob([blob], { type: "application/octet-stream" }) });
   }
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return out;
 }
 
@@ -212,12 +213,12 @@ export async function formatJson(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const text = files.length ? await readText(files[0]) : String(opts.text ?? "");
-  if (!text.trim()) throw new Error("JSON লিখুন অথবা ফাইল দিন");
+  if (!text.trim()) throw err("jsonEmpty");
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch (e) {
-    throw new Error("অবৈধ JSON — " + (e as Error).message);
+    throw err("jsonInvalid", (e as Error).message);
   }
   const mode = String(opts.mode || "pretty2");
   let out: string;
@@ -225,7 +226,7 @@ export async function formatJson(
   else if (mode === "tab") out = JSON.stringify(parsed, null, "\t");
   else if (mode === "pretty4") out = JSON.stringify(parsed, null, 4);
   else out = JSON.stringify(parsed, null, 2);
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [
     { name: "formatted.json", blob: new Blob([out], { type: "application/json;charset=utf-8" }) },
   ];
@@ -242,23 +243,23 @@ export async function convertBase64(
 
   if (mode === "decode") {
     const text = files.length ? await readText(files[0]) : String(opts.text ?? "");
-    if (!text.trim()) throw new Error("ডিকোড করার জন্য Base64 টেক্সট দিন বা ফাইল দিন");
-    onProgress(40, "ডিকোড হচ্ছে...");
+    if (!text.trim()) throw err("b64DecodeEmpty");
+    onProgress(40, pLabel("pDecoding"));
     let bytes: Uint8Array;
     try {
       bytes = base64ToUint8(text);
     } catch {
-      throw new Error("এটি বৈধ Base64 নয়");
+      throw err("b64Invalid");
     }
     const name = safeName(String(opts.filename || "").trim() || "decoded.bin");
-    onProgress(100, "সম্পন্ন");
+    onProgress(100, pLabel("pDone"));
     return [{ name, blob: new Blob([bytes as unknown as BlobPart], { type: "application/octet-stream" }) }];
   }
 
-  if (!files.length) throw new Error("এনকোড করার জন্য একটি ফাইল দিন");
-  onProgress(40, "এনকোড হচ্ছে...");
+  if (!files.length) throw err("b64EncodeEmpty");
+  onProgress(40, pLabel("pEncoding"));
   const b64 = bufferToBase64(await readArrayBuffer(files[0]));
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [
     {
       name: `${stripExt(files[0].name)}.base64.txt`,
@@ -275,11 +276,11 @@ export async function generateQr(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const text = String(opts.text ?? "").trim();
-  if (!text) throw new Error("QR-এ যা রাখতে চান তা লিখুন");
-  if (text.length > 2000) throw new Error("লেখাটি খুব বড় — QR-এর জন্য ছোট করুন");
+  if (!text) throw err("qrEmpty");
+  if (text.length > 2000) throw err("qrTooLong");
   const size = Math.min(2048, Math.max(128, Number(opts.size) || 512));
 
-  onProgress(30, "QR তৈরি হচ্ছে...");
+  onProgress(30, pLabel("pQrMaking"));
   const QRCode = (await import("qrcode")).default;
   const canvas = document.createElement("canvas");
   try {
@@ -287,12 +288,13 @@ export async function generateQr(
       width: size,
       margin: 2,
       errorCorrectionLevel: "M",
+      color: { dark: "#065f46", light: "#ffffff" },
     });
   } catch {
-    throw new Error("QR কোড তৈরি করা যায়নি — লেখাটি বদলে আবার চেষ্টা করুন");
+    throw err("qrFail");
   }
-  onProgress(80, "ছবি তৈরি হচ্ছে...");
+  onProgress(80, pLabel("pImageMaking"));
   const blob = await canvasToBlob(canvas, "image/png");
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: "qr-code.png", blob }];
 }

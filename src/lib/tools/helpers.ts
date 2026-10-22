@@ -1,4 +1,5 @@
 /** Shared helpers for file tool processors (client-side only) */
+import { err } from "./messages";
 
 const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
 
@@ -82,7 +83,7 @@ export async function loadImageBitmap(file: File): Promise<ImageBitmap | HTMLIma
       img.decoding = "async";
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
-        img.onerror = () => reject(new Error("ছবিটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে"));
+        img.onerror = () => reject(new Error("imageLoadFail"));
         img.src = url;
       });
       return img;
@@ -112,7 +113,7 @@ export function canvasToBlob(
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error("ছবি তৈরি করা যায়নি"))),
+      (b) => (b ? resolve(b) : reject(err("imageCreateFail"))),
       mime,
       quality
     );
@@ -124,7 +125,7 @@ export function parsePageRanges(input: string, maxPage: number): number[] {
   const pages = new Set<number>();
   for (const part of input.split(/[,\s]+/).filter(Boolean)) {
     const m = part.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
-    if (!m) throw new Error(`"${part}" — পেজ রেঞ্জ বুঝতে পারা যায়নি। যেমন: 1-3,5`);
+    if (!m) throw err("rangeBad", part);
     let a = parseInt(m[1], 10);
     let b = m[2] ? parseInt(m[2], 10) : a;
     if (a > b) [a, b] = [b, a];
@@ -132,6 +133,6 @@ export function parsePageRanges(input: string, maxPage: number): number[] {
       if (p >= 1 && p <= maxPage) pages.add(p);
     }
   }
-  if (pages.size === 0) throw new Error("কোনো বৈধ পেজ পাওয়া যায়নি");
+  if (pages.size === 0) throw err("noValidPages");
   return [...pages].sort((x, y) => x - y);
 }

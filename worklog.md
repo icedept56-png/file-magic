@@ -98,3 +98,24 @@ Work Log:
 Stage Summary:
 - App is production-ready and browser-verified. 28 working tools, 100% client-side processing.
 - Key artifacts: src/lib/tools/* (engine), src/components/file-hub/* (UI), src/app/page.tsx, manifest.ts, public/sw.js, PWA icons.
+
+---
+Task ID: 5
+Agent: main (Z.ai Code)
+Task: Full redesign (light dashboard theme per reference image) + English language support
+
+Work Log:
+- Root-caused & fixed a MAJOR pre-existing bug found while re-testing: jsPDF `unit:"px"` defaults to a 96/72 scale factor unless `hotfixes:["px_scaling"]` is passed — A4 pages were effectively 446×631 px units, so every html2canvas→jsPDF PDF (text→pdf, html→pdf, docx→pdf, images→pdf) drew 78% oversized and clipped. Verified via PDF content-stream `cm` matrix (was 1058pt image on 595pt page → now 595.5pt = exact fit) + visual pdfjs render.
+- Also fixed: html2canvas-pro does not soft-wrap `white-space:pre-wrap` text → textToPdf now emits flowing `<p>` paragraphs (multi-space runs preserved via &nbsp;); long Bengali lines wrap correctly.
+- i18n: `src/lib/i18n.ts` (69-key [bn,en] dictionary + useT()/pick()/num()), `src/lib/tools/messages.ts` (~80 localized processor errors & progress labels via err()/pLabel() reading lang from store), store gained `lang/setLang` (localStorage `fm-lang`, syncs <html lang>), full EN metadata for all 29 tools (descEn/hintEn/actionLabelEn + option labelEn/placeholderEn) and categories (labelEn).
+- Design overhaul to match reference ("Bolo English" dashboard): light mint bg (#f2f9f5), white fm-cards with soft shadows, emerald→teal primary gradient, flat colored icon tiles (pdf=rose, image=fuchsia, document=orange, spreadsheet=emerald, archive=teal, utility=pink), NEW desktop Sidebar (home + categories + 100% secure card, green active pill), mobile horizontal category chips, white navbar with brand+tagline, "জলদি শুরু করুন / Jump right in" dashboard header, quick-start featured cards (PDF→Word hero card with PDF→DOCX mini-preview), restyled grid/workspace/features/footer/recent/marquee, pastel background orbs + emerald pointer spotlight, btn-shine kept.
+- LanguageToggle segmented pill (বাংলা ⇄ English) in navbar; verified round-trip + localStorage persistence + html[lang] sync.
+- Fixed i18n tuple bug: STR values are [bn,en] tuples but accessor indexed with lang string (returned undefined because noImplicitAny is off) → index by position.
+- register-sw.tsx now only registers in production (dev chunk URLs are unhashed → SW cache-first served stale modules while developing).
+- Regenerated PWA icons (emerald wand, sharp-resized to 512/192/favicon), manifest theme #059669 / bg #f2f9f5, SW cache bumped v4, layout metadata bilingual + OG/Twitter.
+- Verified in browser: home bn/en, grid, featured, workspace bn/en, QR generate (en), PDF→Word e2e (en, 9.4KB docx), mobile 390px (chips, cards, footer), sticky footer, lang persistence after reload, zero console errors.
+
+Stage Summary:
+- App is now a light emerald dashboard-style PWA with full bn/en bilingual UI (all tools, errors, progress). 29 tools, 100% client-side.
+- Key artifacts: src/lib/i18n.ts, src/lib/tools/messages.ts, sidebar.tsx, language-toggle.tsx, featured-tools.tsx, redesigned hero/tool-card/tool-grid/workspace/background/footer, globals.css light theme, manifest.ts, sw.js v4, new icons.
+- All PDF outputs are now correctly scaled (jsPDF px_scaling hotfix) — significant correctness fix beyond styling.

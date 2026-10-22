@@ -1,6 +1,7 @@
 /** PDF processors — pdf-lib + pdfjs-dist, all client-side */
 import type { OutputFile, ToolOptions, ProgressFn } from "../types";
 import { readArrayBuffer, stripExt, parsePageRanges, canvasToBlob, loadImageBitmap } from "../helpers";
+import { err, pLabel } from "../messages";
 
 /** pdf-lib document type (the class has a private constructor → InstanceType is unusable) */
 type PdfDoc = Awaited<ReturnType<(typeof import("pdf-lib").PDFDocument)["load"]>>;
@@ -21,7 +22,7 @@ function pdfBlob(bytes: Uint8Array): Blob {
 }
 
 function loadFailError(): Error {
-  return new Error("পিডিএফটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত বা পাসওয়ার্ড-সুরক্ষিত হতে পারে");
+  return err("pdfLoadFail");
 }
 
 /* ─── 1. Merge ─────────────────────────────────────────────────────────── */
@@ -31,11 +32,11 @@ export async function mergePdf(
   _opts: ToolOptions,
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
-  if (files.length < 2) throw new Error("মার্জ করতে কমপক্ষে ২টি পিডিএফ দিন");
+  if (files.length < 2) throw err("mergeNeed2");
   const { PDFDocument } = await import("pdf-lib");
   const merged = await PDFDocument.create();
   for (let i = 0; i < files.length; i++) {
-    onProgress(Math.round((i / files.length) * 90), `ফাইল ${i + 1}/${files.length}`);
+    onProgress(Math.round((i / files.length) * 90), pLabel("pFile", i + 1, files.length));
     try {
       const src = await PDFDocument.load(await readArrayBuffer(files[i]), {
         ignoreEncryption: true,
@@ -43,14 +44,12 @@ export async function mergePdf(
       const pages = await merged.copyPages(src, src.getPageIndices());
       pages.forEach((p) => merged.addPage(p));
     } catch {
-      throw new Error(
-        "একটি পিডিএফ পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত বা পাসওয়ার্ড-সুরক্ষিত হতে পারে"
-      );
+      throw err("pdfOneCorrupt", files[i].name);
     }
   }
-  onProgress(95, "সেভ হচ্ছে...");
+  onProgress(95, pLabel("pSaving"));
   const bytes = await merged.save();
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: "merged.pdf", blob: pdfBlob(bytes) }];
 }
 
@@ -62,7 +61,7 @@ export async function splitPdf(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const file = files[0];
-  if (!file) throw new Error("একটি পিডিএফ দিন");
+  if (!file) throw err("givePdf");
   const mode = String(opts.mode || "range");
   const { PDFDocument } = await import("pdf-lib");
 
@@ -76,16 +75,16 @@ export async function splitPdf(
   const base = stripExt(file.name);
 
   if (mode === "each") {
-    if (count > 200) throw new Error("পেজ সংখ্যা অনেক বেশি — ২০০-এর কম পেজের পিডিএফ দিন");
+    if (count > 200) throw err("tooManyPages");
     const out: OutputFile[] = [];
     for (let i = 0; i < count; i++) {
-      onProgress(Math.round((i / count) * 95), `পেজ ${i + 1}/${count}`);
+      onProgress(Math.round((i / count) * 95), pLabel("pPage", i + 1, count));
       const doc = await PDFDocument.create();
       const [page] = await doc.copyPages(src, [i]);
       doc.addPage(page);
       out.push({ name: `page-${i + 1}.pdf`, blob: pdfBlob(await doc.save()) });
     }
-    onProgress(100, "সম্পন্ন");
+    onProgress(100, pLabel("pDone"));
     return out;
   }
 
@@ -94,9 +93,9 @@ export async function splitPdf(
   const doc = await PDFDocument.create();
   const pages = await doc.copyPages(src, picked.map((p) => p - 1));
   pages.forEach((p) => doc.addPage(p));
-  onProgress(90, "সেভ হচ্ছে...");
+  onProgress(90, pLabel("pSaving"));
   const bytes = await doc.save();
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: `${base}-split.pdf`, blob: pdfBlob(bytes) }];
 }
 
@@ -108,21 +107,21 @@ export async function compressPdf(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const file = files[0];
-  if (!file) throw new Error("একটি পিডিএফ দিন");
+  if (!file) throw err("givePdf");
   const { PDFDocument } = await import("pdf-lib");
-  onProgress(30, "খোলা হচ্ছে...");
+  onProgress(30, pLabel("pOpening"));
   let doc: PdfDoc;
   try {
     doc = await PDFDocument.load(await readArrayBuffer(file), { ignoreEncryption: true });
   } catch {
     throw loadFailError();
   }
-  onProgress(60, "কম্প্রেস হচ্ছে...");
+  onProgress(60, pLabel("pCompressing"));
   const bytes = await doc.save({ useObjectStreams: true });
   // never hand back a file that is BIGGER than the original — keep the smaller one
   const original = new Uint8Array(await readArrayBuffer(file));
   const final = bytes.length < original.length ? bytes : original;
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: `${stripExt(file.name)}-compressed.pdf`, blob: pdfBlob(final) }];
 }
 
@@ -134,7 +133,7 @@ export async function pdfToImages(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const file = files[0];
-  if (!file) throw new Error("একটি পিডিএফ দিন");
+  if (!file) throw err("givePdf");
   const format = opts.format === "jpeg" ? "jpeg" : "png";
   const quality = Math.min(100, Math.max(10, Number(opts.quality) || 90)) / 100;
   const scale = Math.min(3, Math.max(1, Number(opts.scale) || 2));
@@ -158,7 +157,7 @@ export async function pdfToImages(
     canvas.width = Math.max(1, Math.floor(viewport.width));
     canvas.height = Math.max(1, Math.floor(viewport.height));
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("ক্যানভাস তৈরি করা যায়নি");
+    if (!ctx) throw err("canvasFail");
     if (format === "jpeg") {
       // avoid transparent → black background in JPG
       ctx.fillStyle = "#ffffff";
@@ -167,28 +166,28 @@ export async function pdfToImages(
     try {
       await page.render({ canvasContext: ctx, viewport }).promise;
     } catch {
-      throw new Error(`পেজ ${pageNum} রেন্ডার করা যায়নি — পিডিএফটি ক্ষতিগ্রস্ত হতে পারে`);
+      throw err("pageRenderFail", pageNum);
     }
     page.cleanup();
     return canvasToBlob(canvas, mime, format === "jpeg" ? quality : undefined);
   };
 
   if (numPages === 1) {
-    onProgress(60, "রেন্ডার হচ্ছে...");
+    onProgress(60, pLabel("pRendering"));
     const blob = await renderPage(1);
-    onProgress(100, "সম্পন্ন");
+    onProgress(100, pLabel("pDone"));
     return [{ name: `${base}.${ext}`, blob }];
   }
 
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
   for (let i = 0; i < numPages; i++) {
-    onProgress(Math.min(92, Math.round(((i + 1) / numPages) * 90)), `পেজ ${i + 1}/${numPages}`);
+    onProgress(Math.min(92, Math.round(((i + 1) / numPages) * 90)), pLabel("pPage", i + 1, numPages));
     zip.file(`page-${i + 1}.${ext}`, await renderPage(i + 1));
   }
-  onProgress(95, "ZIP বানানো হচ্ছে...");
+  onProgress(95, pLabel("pZipMaking"));
   const zipBlob: Blob = await zip.generateAsync<"blob">({ compression: "STORE" });
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: `${base}-pages.zip`, blob: zipBlob }];
 }
 
@@ -199,7 +198,7 @@ export async function imagesToPdf(
   _opts: ToolOptions,
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
-  if (!files.length) throw new Error("অন্তত একটি ছবি দিন");
+  if (!files.length) throw err("needImage");
   const { jsPDF } = await import("jspdf");
   const PAGE_W = 794; // A4 in px (96 dpi)
   const PAGE_H = 1123;
@@ -208,17 +207,17 @@ export async function imagesToPdf(
   let pdf: InstanceType<typeof jsPDF> | null = null;
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    onProgress(Math.round((i / files.length) * 90) + 3, `ছবি ${i + 1}/${files.length}`);
+    onProgress(Math.round((i / files.length) * 90) + 3, pLabel("pImage", i + 1, files.length));
 
     let bitmap: ImageBitmap | HTMLImageElement;
     try {
       bitmap = await loadImageBitmap(f);
     } catch {
-      throw new Error(`"${f.name}" ছবিটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে`);
+      throw err("imageCorrupt", f.name);
     }
     const natW = "naturalWidth" in bitmap ? bitmap.naturalWidth || bitmap.width : bitmap.width;
     const natH = "naturalHeight" in bitmap ? bitmap.naturalHeight || bitmap.height : bitmap.height;
-    if (!natW || !natH) throw new Error(`"${f.name}" ছবিটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে`);
+    if (!natW || !natH) throw err("imageCorrupt", f.name);
 
     const landscape = natW > natH;
     if (!pdf) {
@@ -242,7 +241,7 @@ export async function imagesToPdf(
     canvas.width = Math.max(1, Math.round(natW));
     canvas.height = Math.max(1, Math.round(natH));
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("ক্যানভাস তৈরি করা যায়নি");
+    if (!ctx) throw err("canvasFail");
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(bitmap as CanvasImageSource, 0, 0, canvas.width, canvas.height);
@@ -251,9 +250,9 @@ export async function imagesToPdf(
     if ("close" in bitmap && typeof bitmap.close === "function") bitmap.close();
   }
 
-  onProgress(96, "পিডিএফ সাজানো হচ্ছে...");
+  onProgress(96, pLabel("pAssemblingPdf"));
   const blob = (pdf as InstanceType<typeof jsPDF>).output("blob");
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: "images.pdf", blob }];
 }
 
@@ -265,23 +264,23 @@ export async function rotatePdf(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const file = files[0];
-  if (!file) throw new Error("একটি পিডিএফ দিন");
+  if (!file) throw err("givePdf");
   const angle = Number(opts.angle) || 90;
   const { PDFDocument, degrees } = await import("pdf-lib");
-  onProgress(25, "খোলা হচ্ছে...");
+  onProgress(25, pLabel("pOpening"));
   let doc: PdfDoc;
   try {
     doc = await PDFDocument.load(await readArrayBuffer(file), { ignoreEncryption: true });
   } catch {
     throw loadFailError();
   }
-  onProgress(55, "ঘোরানো হচ্ছে...");
+  onProgress(55, pLabel("pRotating"));
   doc.getPages().forEach((page) => {
     page.setRotation(degrees((page.getRotation().angle + angle) % 360));
   });
-  onProgress(85, "সেভ হচ্ছে...");
+  onProgress(85, pLabel("pSaving"));
   const bytes = await doc.save();
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: `${stripExt(file.name)}-rotated.pdf`, blob: pdfBlob(bytes) }];
 }
 
@@ -293,17 +292,17 @@ export async function watermarkPdf(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const file = files[0];
-  if (!file) throw new Error("একটি পিডিএফ দিন");
+  if (!file) throw err("givePdf");
   const text = String(opts.text ?? "").trim() || "CONFIDENTIAL";
   const opacity = Math.min(60, Math.max(5, Number(opts.opacity) || 20));
 
   // render the text once on a transparent canvas (canvas text = full Bengali support)
-  onProgress(12, "ওয়াটারমার্ক আঁকা হচ্ছে...");
+  onProgress(12, pLabel("pDrawingWatermark"));
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
   canvas.height = 256;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("ক্যানভাস তৈরি করা যায়নি");
+  if (!ctx) throw err("canvasFail");
   ctx.translate(512, 128);
   ctx.rotate(-Math.PI / 9);
   // use the SAME font the app actually renders with — next/font registers a hashed family
@@ -331,7 +330,7 @@ export async function watermarkPdf(
   const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
 
   const { PDFDocument } = await import("pdf-lib");
-  onProgress(40, "খোলা হচ্ছে...");
+  onProgress(40, pLabel("pOpening"));
   let doc: PdfDoc;
   try {
     doc = await PDFDocument.load(await readArrayBuffer(file), { ignoreEncryption: true });
@@ -352,11 +351,11 @@ export async function watermarkPdf(
       height: h,
       opacity: drawOpacity,
     });
-    onProgress(Math.round((idx / pages.length) * 45) + 50, `পেজ ${idx + 1}/${pages.length}`);
+    onProgress(Math.round((idx / pages.length) * 45) + 50, pLabel("pPage", idx + 1, pages.length));
   });
-  onProgress(96, "সেভ হচ্ছে...");
+  onProgress(96, pLabel("pSaving"));
   const bytes = await doc.save();
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: `${stripExt(file.name)}-watermarked.pdf`, blob: pdfBlob(bytes) }];
 }
 
@@ -368,11 +367,11 @@ export async function deletePdfPages(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const file = files[0];
-  if (!file) throw new Error("একটি পিডিএফ দিন");
+  if (!file) throw err("givePdf");
   const pagesInput = String(opts.pages ?? "").trim();
-  if (!pagesInput) throw new Error("কোন কোন পেজ মুছবেন লিখুন (যেমন: 2,4-6)");
+  if (!pagesInput) throw err("needPagesInput");
   const { PDFDocument } = await import("pdf-lib");
-  onProgress(20, "খোলা হচ্ছে...");
+  onProgress(20, pLabel("pOpening"));
   let doc: PdfDoc;
   try {
     doc = await PDFDocument.load(await readArrayBuffer(file), { ignoreEncryption: true });
@@ -382,14 +381,14 @@ export async function deletePdfPages(
   const count = doc.getPageCount();
   const toDelete = parsePageRanges(pagesInput, count);
   if (toDelete.length >= count) {
-    throw new Error("সব পেজ মুছে ফেলা যাবে না — অন্তত একটি পেজ থাকতে হবে");
+    throw err("cantDeleteAll");
   }
-  onProgress(50, "পেজ মুছে ফেলা হচ্ছে...");
+  onProgress(50, pLabel("pDeletingPages"));
   // remove in descending order so earlier indices stay valid
   [...toDelete].sort((a, b) => b - a).forEach((p) => doc.removePage(p - 1));
-  onProgress(85, "সেভ হচ্ছে...");
+  onProgress(85, pLabel("pSaving"));
   const bytes = await doc.save();
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: `${stripExt(file.name)}-edited.pdf`, blob: pdfBlob(bytes) }];
 }
 
@@ -407,7 +406,7 @@ async function extractPagesText(file: File, onProgress: ProgressFn): Promise<str
   const numPages = doc.numPages;
   const pageTexts: string[] = [];
   for (let i = 1; i <= numPages; i++) {
-    onProgress(Math.round(((i - 1) / numPages) * 88) + 4, `পেজ ${i}/${numPages}`);
+    onProgress(Math.round(((i - 1) / numPages) * 88) + 4, pLabel("pPage", i, numPages));
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
     const text = content.items
@@ -427,13 +426,11 @@ export async function extractPdfText(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const file = files[0];
-  if (!file) throw new Error("একটি পিডিএফ দিন");
+  if (!file) throw err("givePdf");
   const pageTexts = await extractPagesText(file, onProgress);
   const all = pageTexts.join("\n\n").trim();
-  if (!all) {
-    throw new Error("এই পিডিএফে কোনো টেক্সট পাওয়া যায়নি — সম্ভবত এটি স্ক্যান করা ছবি");
-  }
-  onProgress(100, "সম্পন্ন");
+  if (!all) throw err("pdfNoText");
+  onProgress(100, pLabel("pDone"));
   return [
     { name: `${stripExt(file.name)}.txt`, blob: new Blob([all], { type: "text/plain;charset=utf-8" }) },
   ];
@@ -447,15 +444,11 @@ export async function pdfToDocx(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const file = files[0];
-  if (!file) throw new Error("একটি পিডিএফ দিন");
+  if (!file) throw err("givePdf");
   const pageTexts = await extractPagesText(file, onProgress);
   const all = pageTexts.join("\n\n").trim();
-  if (!all) {
-    throw new Error(
-      "এই পিডিএফে কোনো লেখা পাওয়া যায়নি — স্ক্যান করা পিডিএফ থেকে সরাসরি Word বানানো যায় না"
-    );
-  }
-  onProgress(92, "Word ডকুমেন্ট তৈরি হচ্ছে...");
+  if (!all) throw err("pdfNoTextWord");
+  onProgress(92, pLabel("pWordMaking"));
   const { Document, Packer, Paragraph, TextRun } = await import("docx");
   const paragraphs = all
     .split(/\r?\n/)
@@ -464,6 +457,6 @@ export async function pdfToDocx(
     .map((line) => new Paragraph({ children: [new TextRun(line.trim())] }));
   const doc = new Document({ sections: [{ children: paragraphs }] });
   const blob = await Packer.toBlob(doc);
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: `${stripExt(file.name)}.docx`, blob }];
 }

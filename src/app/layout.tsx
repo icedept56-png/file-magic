@@ -17,9 +17,9 @@ const latin = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "ফাইল ম্যাজিক — সব ফাইলের সম্পূর্ণ সমাধান",
+  title: "ফাইল ম্যাজিক | File Magic — সব ফাইলের সম্পূর্ণ সমাধান",
   description:
-    "PDF, Word, Excel, ছবি, ZIP — সব ধরনের ফাইল কনভার্ট, এডিট, কম্প্রেস ও ম্যানেজ করুন এক জায়গায়। সম্পূর্ণ ফ্রি, সব প্রসেসিং আপনার ব্রাউজারেই — কোনো ফাইল সার্ভারে যায় না।",
+    "PDF, Word, Excel, ছবি, ZIP — সব ধরনের ফাইল কনভার্ট, এডিট, কম্প্রেস ও ম্যানেজ করুন এক জায়গায়। সম্পূর্ণ ফ্রি, সব প্রসেসিং আপনার ব্রাউজারেই — কোনো ফাইল সার্ভারে যায় না। | Convert, edit & compress PDF, Word, Excel, images and ZIP — free and 100% private, right in your browser.",
   keywords: [
     "ফাইল কনভার্টার",
     "pdf to word",
@@ -28,27 +28,28 @@ export const metadata: Metadata = {
     "pdf tools",
     "compress pdf",
     "file magic",
+    "ফাইল ম্যাজিক",
   ],
-  applicationName: "ফাইল ম্যাজিক",
+  applicationName: "ফাইল ম্যাজিক | File Magic",
   manifest: "/manifest.webmanifest",
   openGraph: {
-    title: "ফাইল ম্যাজিক — সব ফাইলের সম্পূর্ণ সমাধান",
+    title: "ফাইল ম্যাজিক | File Magic — সব ফাইলের সম্পূর্ণ সমাধান",
     description:
-      "PDF, Word, Excel, ছবি, ZIP — সব ধরনের ফাইল কনভার্ট, এডিট, কম্প্রেস করুন এক জায়গায়। ১০০% প্রাইভেট, সব প্রসেসিং আপনার ব্রাউজারেই।",
+      "PDF, Word, Excel, ছবি, ZIP — সব ধরনের ফাইল কনভার্ট, এডিট, কম্প্রেস করুন এক জায়গায়। ১০০% প্রাইভেট। | All-in-one file toolkit, 100% private.",
     type: "website",
     locale: "bn_BD",
-    siteName: "ফাইল ম্যাজিক",
+    siteName: "ফাইল ম্যাজিক | File Magic",
   },
   twitter: {
     card: "summary",
-    title: "ফাইল ম্যাজিক — সব ফাইলের সম্পূর্ণ সমাধান",
+    title: "ফাইল ম্যাজিক | File Magic",
     description:
-      "PDF, Word, Excel, ছবি, ZIP — সব ধরনের ফাইল কনভার্ট, এডিট, কম্প্রেস করুন এক জায়গায়।",
+      "সব ফাইলের সম্পূর্ণ সমাধান — কনভার্ট, এডিট, কম্প্রেস এক জায়গায়। | All-in-one file toolkit.",
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "ফাইল ম্যাজিক",
+    statusBarStyle: "default",
+    title: "ফাইল ম্যাজিক | File Magic",
   },
   icons: {
     icon: "/icon-192.png",
@@ -57,7 +58,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#07070d",
+  themeColor: "#f2f9f5",
   viewportFit: "cover",
   width: "device-width",
   initialScale: 1,
@@ -69,7 +70,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="bn" className="dark" suppressHydrationWarning>
+    <html lang="bn" suppressHydrationWarning>
       <body
         className={`${bengali.variable} ${latin.variable} antialiased bg-background text-foreground`}
       >

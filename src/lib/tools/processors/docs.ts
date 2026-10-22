@@ -1,6 +1,7 @@
 /** Document processors — mammoth, docx, marked, html2canvas-pro + jspdf */
 import type { OutputFile, ToolOptions, ProgressFn } from "../types";
 import { readArrayBuffer, readText, stripExt } from "../helpers";
+import { err, pLabel } from "../messages";
 
 /* ─── Private helpers ──────────────────────────────────────────────────── */
 
@@ -38,7 +39,7 @@ function wrapHtmlDoc(bodyHtml: string, title: string): string {
   pre code { background: none; padding: 0; }
   blockquote { margin: 1em 0; padding: 4px 16px; border-left: 4px solid #d1d5db;
                background: #f9fafb; color: #4b5563; }
-  a { color: #7c3aed; }
+  a { color: #059669; }
   hr { border: none; border-top: 1px solid #e5e7eb; margin: 2em 0; }
   ul, ol { padding-left: 1.6em; }
 </style>
@@ -74,7 +75,7 @@ async function htmlToPdfBlob(html: string, onProgress: ProgressFn): Promise<Blob
       useCORS: true,
     });
   } catch {
-    throw new Error("পিডিএফ রেন্ডার করা যায়নি — ডকুমেন্টটি খুব বড় বা অস্বাভাবিক হতে পারে");
+    throw err("pdfRenderFail");
   } finally {
     document.body.removeChild(el);
   }
@@ -83,9 +84,7 @@ async function htmlToPdfBlob(html: string, onProgress: ProgressFn): Promise<Blob
   const { jsPDF } = await import("jspdf");
   const PAGE_H = Math.round(1123 * 2);
   const totalPages = Math.max(1, Math.ceil(canvas.height / PAGE_H));
-  if (totalPages > 80) {
-    throw new Error("ডকুমেন্টটি অনেক বড় — ৮০ পেজের বেশি বানানো যাচ্ছে না");
-  }
+  if (totalPages > 80) throw err("docTooBig");
   // hotfixes:["px_scaling"] is REQUIRED — without it jsPDF's px unit uses a 96/72
   // scale, making the A4 page only ~446×631 "px" units and clipping all content
   const pdf = new jsPDF({ unit: "px", format: "a4", compress: true, hotfixes: ["px_scaling"] });
@@ -96,13 +95,13 @@ async function htmlToPdfBlob(html: string, onProgress: ProgressFn): Promise<Blob
     slice.width = canvas.width;
     slice.height = sliceH;
     const sctx = slice.getContext("2d");
-    if (!sctx) throw new Error("ক্যানভাস তৈরি করা যায়নি");
+    if (!sctx) throw err("canvasFail");
     sctx.fillStyle = "#ffffff";
     sctx.fillRect(0, 0, slice.width, slice.height);
     sctx.drawImage(canvas, 0, i * PAGE_H, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
     // sliceH/2 converts device px back to css px (scale 2)
     pdf.addImage(slice.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 794, sliceH / 2);
-    onProgress(Math.round(((i + 1) / totalPages) * 90) + 5, `পেজ ${i + 1}/${totalPages}`);
+    onProgress(Math.round(((i + 1) / totalPages) * 90) + 5, pLabel("pPage", i + 1, totalPages));
   }
   return pdf.output("blob");
 }
@@ -114,23 +113,23 @@ export async function docxToPdf(
   _opts: ToolOptions,
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
-  if (!files.length) throw new Error("অন্তত একটি Word (.docx) ফাইল দিন");
+  if (!files.length) throw err("needDocx");
   const out: OutputFile[] = [];
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    onProgress(Math.round((i / files.length) * 88), `ফাইল ${i + 1}/${files.length}`);
+    onProgress(Math.round((i / files.length) * 88), pLabel("pFile", i + 1, files.length));
     let html: string;
     try {
       const mammoth = (await import("mammoth")).default;
       const { value } = await mammoth.convertToHtml({ arrayBuffer: await readArrayBuffer(f) });
       html = value;
     } catch {
-      throw new Error(`"${f.name}" খোলা যায়নি — এটি কি সঠিক .docx ফাইল?`);
+      throw err("docxOpenFail", f.name);
     }
     const blob = await htmlToPdfBlob(html, onProgress);
     out.push({ name: `${stripExt(f.name)}.pdf`, blob });
   }
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return out;
 }
 
@@ -141,18 +140,18 @@ export async function docxToHtml(
   _opts: ToolOptions,
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
-  if (!files.length) throw new Error("অন্তত একটি Word (.docx) ফাইল দিন");
+  if (!files.length) throw err("needDocx");
   const out: OutputFile[] = [];
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    onProgress(Math.round((i / files.length) * 85) + 5, `ফাইল ${i + 1}/${files.length}`);
+    onProgress(Math.round((i / files.length) * 85) + 5, pLabel("pFile", i + 1, files.length));
     let html: string;
     try {
       const mammoth = (await import("mammoth")).default;
       const { value } = await mammoth.convertToHtml({ arrayBuffer: await readArrayBuffer(f) });
       html = value;
     } catch {
-      throw new Error(`"${f.name}" খোলা যায়নি — এটি কি সঠিক .docx ফাইল?`);
+      throw err("docxOpenFail", f.name);
     }
     const doc = wrapHtmlDoc(html, stripExt(f.name));
     out.push({
@@ -160,7 +159,7 @@ export async function docxToHtml(
       blob: new Blob([doc], { type: "text/html;charset=utf-8" }),
     });
   }
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return out;
 }
 
@@ -171,25 +170,25 @@ export async function docxToText(
   _opts: ToolOptions,
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
-  if (!files.length) throw new Error("অন্তত একটি Word (.docx) ফাইল দিন");
+  if (!files.length) throw err("needDocx");
   const out: OutputFile[] = [];
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    onProgress(Math.round((i / files.length) * 85) + 5, `ফাইল ${i + 1}/${files.length}`);
+    onProgress(Math.round((i / files.length) * 85) + 5, pLabel("pFile", i + 1, files.length));
     let text: string;
     try {
       const mammoth = (await import("mammoth")).default;
       const { value } = await mammoth.extractRawText({ arrayBuffer: await readArrayBuffer(f) });
       text = value;
     } catch {
-      throw new Error(`"${f.name}" খোলা যায়নি — এটি কি সঠিক .docx ফাইল?`);
+      throw err("docxOpenFail", f.name);
     }
     out.push({
       name: `${stripExt(f.name)}.txt`,
       blob: new Blob([text], { type: "text/plain;charset=utf-8" }),
     });
   }
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return out;
 }
 
@@ -201,7 +200,7 @@ export async function textToPdf(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const text = files.length ? await readText(files[0]) : String(opts.text ?? "");
-  if (!text.trim()) throw new Error("আগে কিছু লিখুন অথবা .txt ফাইল দিন");
+  if (!text.trim()) throw err("needText");
   // html2canvas does NOT soft-wrap white-space:pre-wrap text (long lines get
   // clipped) — so emit real flowing paragraphs instead; runs of 2+ spaces are
   // preserved with &nbsp; and each newline becomes its own paragraph
@@ -213,7 +212,7 @@ export async function textToPdf(
     })
     .join("");
   const blob = await htmlToPdfBlob(html, onProgress);
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: "document.pdf", blob }];
 }
 
@@ -225,15 +224,15 @@ export async function textToDocx(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const text = files.length ? await readText(files[0]) : String(opts.text ?? "");
-  if (!text.trim()) throw new Error("আগে কিছু লিখুন অথবা .txt ফাইল দিন");
-  onProgress(20, "ডকুমেন্ট তৈরি হচ্ছে...");
+  if (!text.trim()) throw err("needText");
+  onProgress(20, pLabel("pDocxMaking"));
   const { Document, Packer, Paragraph, TextRun } = await import("docx");
   const paragraphs = text
     .split(/\r?\n/)
     .map((line) => new Paragraph({ children: [new TextRun(line)] }));
   const doc = new Document({ sections: [{ children: paragraphs }] });
   const blob = await Packer.toBlob(doc);
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: "document.docx", blob }];
 }
 
@@ -245,13 +244,13 @@ export async function markdownToHtml(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const text = files.length ? await readText(files[0]) : String(opts.text ?? "");
-  if (!text.trim()) throw new Error("মার্কডাউন লিখুন বা .md ফাইল দিন");
-  onProgress(30, "মার্কডাউন প্রসেস হচ্ছে...");
+  if (!text.trim()) throw err("needMarkdown");
+  onProgress(30, pLabel("pMdProcessing"));
   const { marked } = await import("marked");
   const body = await marked.parse(text);
   const base = files[0] ? stripExt(files[0].name) : "document";
   const doc = wrapHtmlDoc(body, base);
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: `${base}.html`, blob: new Blob([doc], { type: "text/html;charset=utf-8" }) }];
 }
 
@@ -263,12 +262,12 @@ export async function htmlToPdf(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   const html = files.length ? await readText(files[0]) : String(opts.text ?? "");
-  if (!html.trim()) throw new Error("HTML কোড লিখুন অথবা .html ফাইল দিন");
+  if (!html.trim()) throw err("needHtml");
   // strip scripts AND inline event handlers — rendering them would be unsafe inside the PDF snapshot
   const clean = html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
   const blob = await htmlToPdfBlob(clean, onProgress);
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return [{ name: "document.pdf", blob }];
 }

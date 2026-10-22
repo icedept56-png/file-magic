@@ -1,6 +1,7 @@
 /** Image processors — pure Canvas API, all client-side */
 import type { OutputFile, ToolOptions, ProgressFn } from "../types";
 import { stripExt, loadImageBitmap, canvasToBlob } from "../helpers";
+import { err, pLabel } from "../messages";
 
 type Src = ImageBitmap | HTMLImageElement;
 
@@ -26,7 +27,7 @@ async function fileToBitmap(file: File): Promise<Src> {
   try {
     return await loadImageBitmap(file);
   } catch {
-    throw new Error(`"${file.name}" ছবিটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে`);
+    throw err("imageCorrupt", file.name);
   }
 }
 
@@ -36,7 +37,7 @@ function drawTo(src: Src, w: number, h: number, whiteBase: boolean): HTMLCanvasE
   canvas.width = Math.max(1, Math.round(w));
   canvas.height = Math.max(1, Math.round(h));
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("ক্যানভাস তৈরি করা যায়নি");
+  if (!ctx) throw err("canvasFail");
   if (whiteBase) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -60,7 +61,7 @@ export async function convertImage(
   opts: ToolOptions,
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
-  if (!files.length) throw new Error("অন্তত একটি ছবি দিন");
+  if (!files.length) throw err("needImage");
   const formatRaw = String(opts.format || "webp");
   const format = (["webp", "jpeg", "png"].includes(formatRaw) ? formatRaw : "webp") as
     | "webp"
@@ -71,12 +72,12 @@ export async function convertImage(
 
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    onProgress(Math.round((i / files.length) * 92) + 3, `ছবি ${i + 1}/${files.length}`);
+    onProgress(Math.round((i / files.length) * 92) + 3, pLabel("pImage", i + 1, files.length));
     const bitmap = await fileToBitmap(f);
     const { w, h } = imgSize(bitmap);
     if (!w || !h) {
       closeBitmap(bitmap);
-      throw new Error(`"${f.name}" ছবিটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে`);
+      throw err("imageCorrupt", f.name);
     }
     // JPEG output cannot hold transparency → paint white underneath
     const canvas = drawTo(bitmap, w, h, format === "jpeg");
@@ -88,7 +89,7 @@ export async function convertImage(
     closeBitmap(bitmap);
     out.push({ name: `${stripExt(f.name)}.${format === "jpeg" ? "jpg" : format}`, blob });
   }
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return out;
 }
 
@@ -99,18 +100,18 @@ export async function compressImage(
   opts: ToolOptions,
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
-  if (!files.length) throw new Error("অন্তত একটি ছবি দিন");
+  if (!files.length) throw err("needImage");
   const quality = Math.min(95, Math.max(10, Number(opts.quality) || 75)) / 100;
   const out: OutputFile[] = [];
 
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    onProgress(Math.round((i / files.length) * 92) + 3, `ছবি ${i + 1}/${files.length}`);
+    onProgress(Math.round((i / files.length) * 92) + 3, pLabel("pImage", i + 1, files.length));
     const bitmap = await fileToBitmap(f);
     const { w, h } = imgSize(bitmap);
     if (!w || !h) {
       closeBitmap(bitmap);
-      throw new Error(`"${f.name}" ছবিটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে`);
+      throw err("imageCorrupt", f.name);
     }
     // PNG has no quality knob → re-encode as WebP for real compression
     const srcMime = (f.type || "").toLowerCase();
@@ -126,7 +127,7 @@ export async function compressImage(
     closeBitmap(bitmap);
     out.push({ name: `${stripExt(f.name)}.${target.ext}`, blob });
   }
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return out;
 }
 
@@ -137,21 +138,21 @@ export async function resizeImage(
   opts: ToolOptions,
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
-  if (!files.length) throw new Error("অন্তত একটি ছবি দিন");
+  if (!files.length) throw err("needImage");
   const inW = Number(opts.width) || 0;
   const inH = Number(opts.height) || 0;
-  if (!inW && !inH) throw new Error("প্রস্থ বা উচ্চতা — যেকোনো একটি দিন");
+  if (!inW && !inH) throw err("needWidthOrHeight");
   const keepAspect = opts.keepAspect !== false && opts.keepAspect !== "false";
   const out: OutputFile[] = [];
 
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    onProgress(Math.round((i / files.length) * 92) + 3, `ছবি ${i + 1}/${files.length}`);
+    onProgress(Math.round((i / files.length) * 92) + 3, pLabel("pImage", i + 1, files.length));
     const bitmap = await fileToBitmap(f);
     const natW = imgSize(bitmap);
     if (!natW.w || !natW.h) {
       closeBitmap(bitmap);
-      throw new Error(`"${f.name}" ছবিটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে`);
+      throw err("imageCorrupt", f.name);
     }
 
     let tW: number;
@@ -179,7 +180,7 @@ export async function resizeImage(
     closeBitmap(bitmap);
     out.push({ name: `${stripExt(f.name)}.${target.ext}`, blob });
   }
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return out;
 }
 
@@ -190,7 +191,7 @@ export async function rotateFlipImage(
   opts: ToolOptions,
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
-  if (!files.length) throw new Error("অন্তত একটি ছবি দিন");
+  if (!files.length) throw err("needImage");
   const rotate = Number(opts.rotate) || 0;
   const rot = (((Math.round(rotate / 90) * 90) % 360) + 360) % 360; // snap to 0/90/180/270
   const flipH = opts.flipH === true || opts.flipH === "true";
@@ -199,14 +200,14 @@ export async function rotateFlipImage(
 
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    onProgress(Math.round((i / files.length) * 92) + 3, `ছবি ${i + 1}/${files.length}`);
+    onProgress(Math.round((i / files.length) * 92) + 3, pLabel("pImage", i + 1, files.length));
     const bitmap = await fileToBitmap(f);
     const size = imgSize(bitmap);
     const natW = size.w;
     const natH = size.h;
     if (!natW || !natH) {
       closeBitmap(bitmap);
-      throw new Error(`"${f.name}" ছবিটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে`);
+      throw err("imageCorrupt", f.name);
     }
     const target = sameFormatTarget(f, 0.92);
     const swap = rot === 90 || rot === 270;
@@ -217,7 +218,7 @@ export async function rotateFlipImage(
     canvas.width = Math.max(1, cw);
     canvas.height = Math.max(1, ch);
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("ক্যানভাস তৈরি করা যায়নি");
+    if (!ctx) throw err("canvasFail");
     if (target.mime === "image/jpeg") {
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -233,6 +234,6 @@ export async function rotateFlipImage(
     closeBitmap(bitmap);
     out.push({ name: `${stripExt(f.name)}.${target.ext}`, blob });
   }
-  onProgress(100, "সম্পন্ন");
+  onProgress(100, pLabel("pDone"));
   return out;
 }

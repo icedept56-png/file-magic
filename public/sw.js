@@ -1,5 +1,5 @@
 /* ফাইল ম্যাজিক — Service Worker (offline support) */
-const CACHE = "file-magic-v3";
+const CACHE = "file-magic-v4";
 
 // core shell precached at install → the app opens offline even on FIRST run
 const PRECACHE = [

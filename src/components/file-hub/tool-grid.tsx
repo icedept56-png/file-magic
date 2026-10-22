@@ -5,12 +5,13 @@ import { motion } from "framer-motion";
 import { SearchX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { toBn } from "@/lib/tools/helpers";
+import { useT } from "@/lib/i18n";
 import { filterTools } from "@/lib/tools/registry";
 import { useAppStore } from "@/store/app-store";
 import { ToolCard } from "@/components/file-hub/tool-card";
 
 export function ToolGrid() {
+  const { t, num } = useT();
   const search = useAppStore((s) => s.search);
   const category = useAppStore((s) => s.category);
   const setSearch = useAppStore((s) => s.setSearch);
@@ -24,21 +25,23 @@ export function ToolGrid() {
   return (
     <section id="tools" className="mt-10 scroll-mt-24">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-        <div className="mb-6 flex items-end justify-between">
-          <h2 className="text-2xl font-bold text-zinc-50">সব টুল একসাথে</h2>
-          <span className="text-sm text-zinc-500">
-            {toBn(filtered.length)} টি টুল
+        <div className="mb-5 flex items-end justify-between">
+          <h2 className="flex items-center gap-2.5 text-xl font-bold text-emerald-950 sm:text-2xl">
+            {t("browseAll")}
+          </h2>
+          <span className="rounded-full border border-emerald-600/12 bg-white px-3 py-1 text-sm text-emerald-800/70 shadow-sm">
+            {num(filtered.length)} {t("toolCount")}
           </span>
         </div>
 
         {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-6 py-16 text-center backdrop-blur-sm">
-            <SearchX className="mx-auto h-10 w-10 text-zinc-600" />
-            <p className="mt-4 font-medium text-zinc-300">
-              কোনো টুল মেলেনি
+          <div className="fm-card rounded-2xl px-6 py-14 text-center">
+            <SearchX className="mx-auto h-10 w-10 text-emerald-700/30" />
+            <p className="mt-4 font-semibold text-emerald-950/80">
+              {t("noMatch")}
             </p>
-            <p className="mt-1 text-sm text-zinc-500">
-              অন্য কিছু লিখে খুঁজে দেখুন অথবা সব টুল ব্রাউজ করুন।
+            <p className="mt-1 text-sm text-emerald-900/55">
+              {t("noMatchHint")}
             </p>
             <Button
               variant="ghost"
@@ -46,9 +49,9 @@ export function ToolGrid() {
                 setSearch("");
                 setCategory("all");
               }}
-              className="mt-4 text-fuchsia-400 hover:bg-white/10 hover:text-fuchsia-300"
+              className="mt-4 text-emerald-600 hover:bg-emerald-600/10 hover:text-emerald-700"
             >
-              সব টুল দেখুন
+              {t("seeAll")}
             </Button>
           </div>
         ) : (
@@ -56,9 +59,10 @@ export function ToolGrid() {
             {filtered.map((tool, i) => (
               <motion.div
                 key={tool.id}
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.4) }}
+                transition={{ duration: 0.28, delay: Math.min(i * 0.025, 0.35) }}
+                className="h-full"
               >
                 <ToolCard tool={tool} />
               </motion.div>

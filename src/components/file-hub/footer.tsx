@@ -1,21 +1,24 @@
 "use client";
 
-import { Wand2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
+
+import { useT } from "@/lib/i18n";
 
 export function Footer() {
+  const { t } = useT();
+
   return (
-    <footer className="mt-auto border-t border-white/[0.06] bg-black/20">
-      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+    <footer className="mt-auto border-t border-emerald-900/[0.06] bg-white/70 backdrop-blur-sm">
+      <div className="mx-auto w-full max-w-6xl px-4 py-7 sm:px-6">
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-fuchsia-500 via-violet-500 to-orange-400">
-              <Wand2 className="h-4 w-4 text-white" />
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-sm shadow-emerald-500/30">
+              <Sparkles className="h-4 w-4 text-white" />
             </span>
-            <span className="font-semibold text-zinc-200">ফাইল ম্যাজিক</span>
+            <span className="font-bold text-emerald-950">{t("brandName")}</span>
           </div>
-          <p className="text-center text-sm text-zinc-500 sm:text-right">
-            © {new Date().getFullYear()} ফাইল ম্যাজিক — আপনার ফাইল আপনার ডিভাইসেই
-            থাকে। কোনো আপলোড নেই, কোনো ট্র্যাকিং নেই।
+          <p className="text-center text-sm text-emerald-900/55 sm:text-right">
+            © {new Date().getFullYear()} {t("brandName")} — {t("footerLine")}
           </p>
         </div>
       </div>

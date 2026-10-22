@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n";
 
 type BeforeInstallPromptEvent = {
   prompt: () => Promise<void>;
@@ -12,6 +13,7 @@ type BeforeInstallPromptEvent = {
 
 /** Shows an "install app" button whenever the browser exposes the install prompt */
 export function PwaInstaller() {
+  const { lang } = useT();
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
 
@@ -50,11 +52,13 @@ export function PwaInstaller() {
       size="sm"
       variant="outline"
       onClick={install}
-      aria-label="অ্যাপ ইনস্টল করুন"
-      className="border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10 hover:text-white"
+      aria-label={installLabel[0]}
+      className="hidden border-emerald-600/20 bg-white text-emerald-800 shadow-sm hover:bg-emerald-50 hover:text-emerald-900 md:inline-flex"
     >
-      <Download className="h-4 w-4" />
-      ইনস্টল করুন
+      <Download className="h-4 w-4 text-emerald-600" />
+      {installLabel[lang === "en" ? 1 : 0]}
     </Button>
   );
 }
+
+const installLabel = ["ইনস্টল করুন", "Install app"] as const;

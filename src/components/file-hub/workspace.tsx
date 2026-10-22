@@ -40,8 +40,9 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { downloadBlob, formatBytes, toBn } from "@/lib/tools/helpers";
+import { downloadBlob, formatBytes } from "@/lib/tools/helpers";
 import { getTool } from "@/lib/tools/registry";
+import { pick, useT } from "@/lib/i18n";
 import type { OutputFile, ToolOptionField } from "@/lib/tools/types";
 import { useAppStore } from "@/store/app-store";
 
@@ -51,21 +52,22 @@ type Opts = Record<string, OptValue>;
 /** pick a matching icon + tint for a file, by extension */
 function fileVisual(name: string): { Icon: typeof FileIcon; className: string } {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "pdf") return { Icon: FileText, className: "text-rose-400" };
+  if (ext === "pdf") return { Icon: FileText, className: "text-rose-500" };
   if (["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"].includes(ext))
-    return { Icon: ImageIcon, className: "text-fuchsia-400" };
+    return { Icon: ImageIcon, className: "text-fuchsia-500" };
   if (["doc", "docx", "txt", "md", "html", "htm"].includes(ext))
-    return { Icon: FileType2, className: "text-orange-400" };
+    return { Icon: FileType2, className: "text-orange-500" };
   if (["xls", "xlsx", "csv"].includes(ext))
-    return { Icon: FileSpreadsheet, className: "text-emerald-400" };
+    return { Icon: FileSpreadsheet, className: "text-emerald-500" };
   if (["zip", "rar", "7z", "tar", "gz"].includes(ext))
-    return { Icon: Package, className: "text-teal-400" };
+    return { Icon: Package, className: "text-teal-500" };
   if (["mp3", "wav", "ogg", "m4a", "flac"].includes(ext))
-    return { Icon: Music, className: "text-cyan-400" };
-  return { Icon: FileIcon, className: "text-zinc-400" };
+    return { Icon: Music, className: "text-cyan-500" };
+  return { Icon: FileIcon, className: "text-emerald-700/60" };
 }
 
 export function Workspace() {
+  const { t, num, lang } = useT();
   const activeToolId = useAppStore((s) => s.activeToolId);
   const goHome = useAppStore((s) => s.goHome);
 
@@ -85,8 +87,8 @@ export function Workspace() {
   const resultsRef = useRef<HTMLDivElement>(null);
   const dragDepth = useRef(0);
 
-  const defaultOpts = (t: NonNullable<typeof tool>): Opts =>
-    Object.fromEntries(t.options.map((o) => [o.key, o.default ?? ""] as const));
+  const defaultOpts = (t2: NonNullable<typeof tool>): Opts =>
+    Object.fromEntries(t2.options.map((o) => [o.key, o.default ?? ""] as const));
 
   // Reset everything when the active tool changes
   useEffect(() => {
@@ -156,9 +158,7 @@ export function Workspace() {
   const runProcess = async () => {
     if (!tool) return;
     if (!canProcess) {
-      toast.error(
-        tool.inputMode === "text" ? "আগে লেখা দিন" : "প্রথমে ফাইল যোগ করুন"
-      );
+      toast.error(tool.inputMode === "text" ? t("needText") : t("needFile"));
       return;
     }
     setBusy(true);
@@ -171,15 +171,15 @@ export function Workspace() {
         setProgress(Math.min(100, Math.max(0, pct)));
         if (label) setProgressLabel(label);
       });
-      if (!out?.length) throw new Error("কোনো ফাইল তৈরি হয়নি");
+      if (!out?.length) throw new Error(t("noOutputErr"));
       setResults(out);
-      toast.success("সফলভাবে সম্পন্ন হয়েছে!");
+      toast.success(t("doneToast"));
       // bring the fresh results into view
       requestAnimationFrame(() => {
         resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "কিছু একটা সমস্যা হয়েছে";
+      const msg = e instanceof Error ? e.message : t("genericErr");
       setError(msg);
       toast.error(msg);
     } finally {
@@ -215,9 +215,9 @@ export function Workspace() {
         compressionOptions: { level: 6 },
       });
       downloadBlob(zipBlob, `${tool.id}-files.zip`);
-      toast.success("ZIP ফাইল তৈরি হয়েছে");
+      toast.success(t("zipDoneToast"));
     } catch {
-      toast.error("ZIP তৈরি করা যায়নি");
+      toast.error(t("zipFailToast"));
     } finally {
       setZipping(false);
     }
@@ -240,19 +240,15 @@ export function Workspace() {
           variant="ghost"
           size="sm"
           onClick={goHome}
-          className="text-zinc-300 hover:bg-white/10 hover:text-white"
+          className="text-emerald-900/70 hover:bg-emerald-600/10 hover:text-emerald-900"
         >
           <ArrowLeft className="h-4 w-4" />
-          সব টুল
+          {t("allTools")}
         </Button>
-        <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.04] px-6 py-16 text-center backdrop-blur-sm">
-          <SearchX className="mx-auto h-10 w-10 text-zinc-600" />
-          <p className="mt-4 font-medium text-zinc-300">
-            টুলটি খুঁজে পাওয়া যায়নি
-          </p>
-          <p className="mt-1 text-sm text-zinc-500">
-            সম্ভবত লিংকটি পুরোনো — হোম থেকে আবার একটি টুল বেছে নিন।
-          </p>
+        <div className="fm-card mt-6 rounded-2xl px-6 py-16 text-center">
+          <SearchX className="mx-auto h-10 w-10 text-emerald-700/30" />
+          <p className="mt-4 font-semibold text-emerald-950/80">{t("toolNotFound")}</p>
+          <p className="mt-1 text-sm text-emerald-900/55">{t("toolNotFoundHint")}</p>
         </div>
       </section>
     );
@@ -270,22 +266,24 @@ export function Workspace() {
       : 0;
 
   const renderField = (f: ToolOptionField) => {
+    const label = pick(lang, f.label, f.labelEn);
+    const placeholder = pick(lang, f.placeholder ?? "", f.placeholderEn ?? "") || undefined;
     switch (f.type) {
       case "select":
         return (
           <div key={f.key} className="flex flex-col gap-2">
-            <Label className="text-xs text-zinc-400">{f.label}</Label>
+            <Label className="text-xs text-emerald-900/70">{label}</Label>
             <Select
               value={String(opts[f.key] ?? f.default ?? "")}
               onValueChange={(v) => setOpt(f.key, v)}
             >
-              <SelectTrigger className="w-full border-white/10 bg-white/[0.05]">
-                <SelectValue placeholder="বাছুন" />
+              <SelectTrigger className="w-full border-emerald-900/10 bg-white shadow-sm">
+                <SelectValue placeholder={t("chooseOne")} />
               </SelectTrigger>
-              <SelectContent className="border-white/10 bg-[#0d0d17]">
+              <SelectContent className="border-emerald-600/15 bg-white shadow-lg">
                 {f.options?.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {pick(lang, o.label, o.labelEn)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -296,9 +294,9 @@ export function Workspace() {
         return (
           <div key={f.key} className="flex flex-col gap-2">
             <div className="flex items-center">
-              <Label className="text-xs text-zinc-400">{f.label}</Label>
-              <span className="ml-auto rounded-md bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-fuchsia-400">
-                {toBn(Number(opts[f.key] ?? f.default ?? f.min ?? 0))}
+              <Label className="text-xs text-emerald-900/70">{label}</Label>
+              <span className="ml-auto rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                {num(Number(opts[f.key] ?? f.default ?? f.min ?? 0))}
                 {f.unit ?? ""}
               </span>
             </div>
@@ -308,25 +306,25 @@ export function Workspace() {
               step={f.step}
               value={[Number(opts[f.key] ?? f.default ?? f.min ?? 0)]}
               onValueChange={(vals) => setOpt(f.key, vals[0] ?? 0)}
-              aria-label={f.label}
+              aria-label={label}
             />
           </div>
         );
       case "number":
         return (
           <div key={f.key} className="flex flex-col gap-2">
-            <Label className="text-xs text-zinc-400">{f.label}</Label>
+            <Label className="text-xs text-emerald-900/70">{label}</Label>
             <Input
               type="number"
               min={f.min}
               max={f.max}
               step={f.step}
-              placeholder={f.placeholder}
+              placeholder={placeholder}
               value={String(opts[f.key] ?? "")}
               onChange={(e) =>
                 setOpt(f.key, e.target.value === "" ? "" : Number(e.target.value))
               }
-              className="border-white/10 bg-white/[0.05] placeholder:text-zinc-600"
+              className="border-emerald-900/10 bg-white shadow-sm placeholder:text-emerald-900/35"
             />
           </div>
         );
@@ -334,39 +332,39 @@ export function Workspace() {
         return (
           <div
             key={f.key}
-            className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5"
+            className="flex items-center justify-between rounded-xl border border-emerald-900/[0.07] bg-white px-3 py-2.5 shadow-sm"
           >
-            <Label className="text-xs text-zinc-400">{f.label}</Label>
+            <Label className="text-xs text-emerald-900/70">{label}</Label>
             <Switch
               checked={!!opts[f.key]}
               onCheckedChange={(v) => setOpt(f.key, v)}
-              aria-label={f.label}
+              aria-label={label}
             />
           </div>
         );
       case "text":
         return (
           <div key={f.key} className="flex flex-col gap-2">
-            <Label className="text-xs text-zinc-400">{f.label}</Label>
+            <Label className="text-xs text-emerald-900/70">{label}</Label>
             <Input
               type="text"
-              placeholder={f.placeholder}
+              placeholder={placeholder}
               value={String(opts[f.key] ?? "")}
               onChange={(e) => setOpt(f.key, e.target.value)}
-              className="border-white/10 bg-white/[0.05] placeholder:text-zinc-600"
+              className="border-emerald-900/10 bg-white shadow-sm placeholder:text-emerald-900/35"
             />
           </div>
         );
       case "textarea":
         return (
           <div key={f.key} className="col-span-full flex flex-col gap-2">
-            <Label className="text-xs text-zinc-400">{f.label}</Label>
+            <Label className="text-xs text-emerald-900/70">{label}</Label>
             <Textarea
               rows={6}
-              placeholder={f.placeholder}
+              placeholder={placeholder}
               value={String(opts[f.key] ?? "")}
               onChange={(e) => setOpt(f.key, e.target.value)}
-              className="resize-y border-white/10 bg-white/[0.05] placeholder:text-zinc-600"
+              className="resize-y border-emerald-900/10 bg-white shadow-sm placeholder:text-emerald-900/35"
             />
           </div>
         );
@@ -382,33 +380,36 @@ export function Workspace() {
         variant="ghost"
         size="sm"
         onClick={goHome}
-        className="text-zinc-300 hover:bg-white/10 hover:text-white"
+        className="text-emerald-900/70 hover:bg-emerald-600/10 hover:text-emerald-900"
       >
         <ArrowLeft className="h-4 w-4" />
-        সব টুল
+        {t("allTools")}
       </Button>
 
       <div className="mt-4 flex items-center gap-4">
         <span
-          className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${tool.gradient}`}
-          style={{ boxShadow: `0 8px 24px -8px ${tool.glow}` }}
+          className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl shadow-lg ${tool.gradient}`}
         >
           <tool.icon className="h-7 w-7 text-white" />
         </span>
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold text-zinc-50">{tool.name}</h1>
-          <p className="mt-0.5 text-sm text-zinc-400">{tool.desc}</p>
+          <h1 className="truncate text-2xl font-bold text-emerald-950">
+            {pick(lang, tool.name, tool.nameEn)}
+          </h1>
+          <p className="mt-0.5 text-sm text-emerald-900/60">
+            {pick(lang, tool.desc, tool.descEn)}
+          </p>
         </div>
       </div>
 
       {/* main card */}
-      <div className="mt-6 flex flex-col gap-6 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5 backdrop-blur-sm sm:p-6">
+      <div className="fm-card mt-6 flex flex-col gap-6 rounded-2xl p-5 sm:p-6">
         {/* dropzone */}
         {tool.inputMode !== "text" && (
           <div
             role="button"
             tabIndex={0}
-            aria-label="ফাইল যোগ করুন"
+            aria-label={t("addFileAria")}
             onClick={openFilePicker}
             onKeyDown={handleDropzoneKeyDown}
             onDragOver={(e) => e.preventDefault()}
@@ -428,10 +429,10 @@ export function Workspace() {
               setDragging(false);
               addFiles(e.dataTransfer?.files ?? null);
             }}
-            className={`cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-fuchsia-500/60 ${
+            className={`cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
               dragging
-                ? "scale-[1.01] border-fuchsia-400 bg-fuchsia-500/10"
-                : "border-white/15 bg-white/[0.03] hover:border-fuchsia-400/50 hover:bg-white/[0.05]"
+                ? "scale-[1.01] border-emerald-500 bg-emerald-500/[0.07]"
+                : "border-emerald-600/25 bg-emerald-50/40 hover:border-emerald-500/60 hover:bg-emerald-50"
             }`}
           >
             <motion.div
@@ -442,14 +443,14 @@ export function Workspace() {
                   : { duration: 0.2 }
               }
             >
-              <UploadCloud className="mx-auto h-10 w-10 text-fuchsia-400" />
+              <UploadCloud className="mx-auto h-10 w-10 text-emerald-500" />
             </motion.div>
-            <p className="mt-3 font-medium text-zinc-200">
-              ফাইল টেনে আনুন অথবা ক্লিক করুন
+            <p className="mt-3 font-semibold text-emerald-950/85">{t("dropHere")}</p>
+            <p className="mt-1 text-xs text-emerald-900/55">
+              {pick(lang, tool.hint, tool.hintEn)}
             </p>
-            <p className="mt-1 text-xs text-zinc-500">{tool.hint}</p>
-            <p className="mt-2 text-[11px] text-zinc-600">
-              {tool.files.multiple ? "একাধিক ফাইল দেওয়া যাবে" : "একটি ফাইল দিন"}
+            <p className="mt-2 text-[11px] text-emerald-900/40">
+              {tool.files.multiple ? t("multipleOk") : t("oneOnly")}
             </p>
             <input
               ref={inputRef}
@@ -483,21 +484,21 @@ export function Workspace() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2"
+                    className="flex items-center gap-3 rounded-xl border border-emerald-900/[0.07] bg-white px-3 py-2 shadow-sm"
                   >
                     <visual.Icon className={`h-4 w-4 shrink-0 ${visual.className}`} />
-                    <span className="flex-1 truncate text-sm text-zinc-200">
+                    <span className="flex-1 truncate text-sm text-emerald-950/85">
                       {f.name}
                     </span>
-                    <span className="shrink-0 text-xs text-zinc-500">
+                    <span className="shrink-0 text-xs text-emerald-900/50">
                       {formatBytes(f.size)}
                     </span>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => removeFile(i)}
-                      aria-label="সরান"
-                      className="h-7 w-7 shrink-0 text-zinc-500 hover:bg-white/10 hover:text-white"
+                      aria-label={t("remove")}
+                      className="h-7 w-7 shrink-0 text-emerald-900/40 hover:bg-emerald-600/10 hover:text-emerald-800"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -518,8 +519,8 @@ export function Workspace() {
         {/* settings */}
         {settingFields.length > 0 && (
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-zinc-300">
-              সেটিংস
+            <h3 className="mb-3 text-sm font-bold text-emerald-950/80">
+              {t("settings")}
             </h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {settingFields.map(renderField)}
@@ -532,13 +533,13 @@ export function Workspace() {
           <div className="space-y-2" role="status" aria-live="polite">
             <Progress
               value={progress}
-              className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-fuchsia-500 [&>div]:via-violet-500 [&>div]:to-orange-400"
+              className="h-2 bg-emerald-100 [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-teal-500"
             />
-            <p className="flex items-center justify-center gap-2 text-xs text-zinc-400">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {progressLabel || "কাজ চলছে..."}
-              <span className="font-medium text-fuchsia-300">
-                {toBn(Math.round(progress))}%
+            <p className="flex items-center justify-center gap-2 text-xs text-emerald-900/60">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+              {progressLabel || t("working")}
+              <span className="font-semibold text-emerald-700">
+                {num(Math.round(progress))}%
               </span>
             </p>
           </div>
@@ -548,10 +549,10 @@ export function Workspace() {
         {error && !busy && (
           <Alert
             variant="destructive"
-            className="border-red-500/30 bg-red-500/10 text-red-300"
+            className="border-red-500/25 bg-red-50 text-red-700"
           >
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>সমস্যা হয়েছে</AlertTitle>
+            <AlertTitle>{t("errTitle")}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -560,17 +561,17 @@ export function Workspace() {
         <Button
           onClick={runProcess}
           disabled={!canProcess || busy}
-          className="btn-shine h-12 w-full rounded-xl bg-gradient-to-r from-fuchsia-500 via-violet-500 to-orange-400 text-base font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn-shine h-12 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-base font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" />
-              কাজ চলছে...
+              {t("working")}
             </>
           ) : (
             <>
               <Wand2 className="h-5 w-5" />
-              {tool.actionLabel}
+              {pick(lang, tool.actionLabel, tool.actionLabelEn)}
             </>
           )}
         </Button>
@@ -584,15 +585,15 @@ export function Workspace() {
             transition={{ duration: 0.3 }}
             className="space-y-3"
           >
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
               <span className="relative flex h-5 w-5 shrink-0 items-center justify-center">
                 <span className="fm-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
-                <CheckCircle2 className="relative h-5 w-5" />
+                <CheckCircle2 className="relative h-5 w-5 text-emerald-600" />
               </span>
-              সম্পন্ন! নিচের ফাইলগুলো ডাউনলোড করুন
+              {t("doneBanner")}
               {savedPct > 0 && (
-                <span className="ml-auto rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
-                  {toBn(savedPct)}% ছোট হয়েছে
+                <span className="ml-auto rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                  {num(savedPct)}% {t("smallerBy")}
                 </span>
               )}
             </div>
@@ -601,22 +602,22 @@ export function Workspace() {
               {results.map((r, i) => (
                 <div
                   key={`${r.name}-${i}`}
-                  className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2"
+                  className="flex items-center gap-3 rounded-xl border border-emerald-900/[0.07] bg-white px-3 py-2 shadow-sm"
                 >
-                  <FileDown className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span className="flex-1 truncate text-sm text-zinc-200">
+                  <FileDown className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <span className="flex-1 truncate text-sm text-emerald-950/85">
                     {r.name}
                   </span>
-                  <span className="shrink-0 text-xs text-zinc-500">
+                  <span className="shrink-0 text-xs text-emerald-900/50">
                     {formatBytes(r.blob.size)}
                   </span>
                   <Button
                     size="sm"
                     onClick={() => downloadBlob(r.blob, r.name)}
-                    className="shrink-0 border border-white/10 bg-white/10 text-zinc-100 hover:bg-white/20"
+                    className="shrink-0 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm shadow-emerald-500/25 hover:brightness-105"
                   >
                     <Download className="h-4 w-4" />
-                    ডাউনলোড
+                    {t("download")}
                   </Button>
                 </div>
               ))}
@@ -627,17 +628,17 @@ export function Workspace() {
                 variant="outline"
                 onClick={downloadAllAsZip}
                 disabled={zipping}
-                className="h-11 w-full border-white/15 bg-white/[0.03] text-zinc-200 hover:bg-white/10 hover:text-white"
+                className="h-11 w-full border-emerald-600/20 bg-white text-emerald-800 shadow-sm hover:bg-emerald-50 hover:text-emerald-900"
               >
                 {zipping ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    ZIP তৈরি হচ্ছে...
+                    {t("zipMaking")}
                   </>
                 ) : (
                   <>
-                    <Archive className="h-4 w-4" />
-                    সব ডাউনলোড (ZIP)
+                    <Archive className="h-4 w-4 text-emerald-600" />
+                    {t("downloadAllZip")}
                   </>
                 )}
               </Button>
@@ -650,10 +651,10 @@ export function Workspace() {
           <Button
             variant="ghost"
             onClick={resetAll}
-            className="w-full text-zinc-400 hover:bg-white/10 hover:text-white"
+            className="w-full text-emerald-900/55 hover:bg-emerald-600/10 hover:text-emerald-800"
           >
             <RotateCcw className="h-4 w-4" />
-            নতুন কাজ শুরু করুন
+            {t("startFresh")}
           </Button>
         )}
       </div>
