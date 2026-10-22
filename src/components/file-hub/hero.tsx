@@ -114,7 +114,7 @@ export function Hero() {
               onKeyDown={handleKeyDown}
               placeholder={t("searchPlaceholder")}
               aria-label={t("searchAria")}
-              className="relative h-13 rounded-2xl border-emerald-900/10 bg-white pl-12 pr-24 text-base text-emerald-950 shadow-[0_2px_10px_-4px_rgba(5,150,105,0.15)] placeholder:text-emerald-900/40 focus-visible:ring-emerald-500/50 min-h-11"
+              className="relative h-13 rounded-2xl border-emerald-900/10 bg-white pl-12 pr-12 text-base text-emerald-950 shadow-[0_2px_10px_-4px_rgba(5,150,105,0.15)] placeholder:text-emerald-900/40 focus-visible:ring-emerald-500/50 min-h-11 sm:pr-24"
             />
             {search ? (
               <button

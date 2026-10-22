@@ -144,3 +144,27 @@ Work Log:
 Stage Summary:
 - User's broken screenshot root-caused (stale SW) and permanently fixed via self-healing register-sw; browser will auto-recover on next visit.
 - App graphics now premium: gradient icon system app-wide, animated featured hero, balanced layouts, count badges, category dots, edge-fade marquee, richer footer. No blue/indigo anywhere. Lint + tsc clean, browser-verified bn/en desktop+mobile.
+
+---
+Task ID: 7
+Agent: main (Z.ai Code)
+Task: User request (Bengali): 1) more mobile-responsive + better arranged, 2) develop eye-friendly background graphics, 3) build a real PDF editing canvas (erase letters, add images/text), 4) bring professional editing tools into the app
+
+Work Log:
+- BACKGROUND REWORK (eye comfort): background.tsx rewritten — calm vertical wash gradient (#edf6f0→#f4faf6→#f6f7f2), 4 large low-saturation aurora orbs (emerald-200/35, teal-100/45, amber-100/40, rose-100/35, blur 110-120px), soft DOT grid (.fm-grid radial dots 26px, fades below hero), horizon beam, gentle vignette, slow pointer spotlight; orb animations slowed to 30-42s. globals.css .fm-grid now dot-based.
+- MOBILE PASS: hero search pr-12 sm:pr-24; featured hero card p-5 sm:p-6 + gap tuning; compact featured cards gap-3.5 p-4 sm:p-5; tool cards p-4 sm:p-5; grid gap-3 sm:gap-4; mobile category chips snap-x snap-mandatory + edge-fade mask + colored gradient dots; features p-5 sm:p-6, mt-12 sm:mt-16.
+- PDF EDITOR (flagship, src/components/file-hub/pdf-editor.tsx ~1350 lines):
+  - Store: View = home|tool|editor; openTool("pdf-editor") routes to editor view; goHome pushes {fm:"home"} (history.back() UNRELIABLE — Next.js App Router patches history stack; discovered via live debugging); HistorySync handles editor popstate + deep links.
+  - Registry: pdf-editor tool entry (SquarePen icon, pdf category, search keywords edit/erase/whiteout/sign/draw).
+  - Features: pdf.js canvas render (fit-width + zoom 50-300% + dpr), page thumbnail rail (40 thumbs max), tool palette (select/erase-whiteout/highlight/text/draw/image via picker), color + brush-width + font-size controls, drag/move/resize(pointer capture, touch-none for mobile), rubber-band rects, freehand SVG draw, text elements contentEditable with live-commit onInput (KEY FIX: React re-render wipes contentEditable children — never render children; sync via ref+rAF reading elsRef mirror; blur only handles width+empty-cleanup), grip handle to move text (click places caret), delete/rotate/clear page ops (elements rotate with page), undo stack (40 snapshots), beforeunload dirty guard, MAX_PAGES 300.
+  - Export via pdf-lib: rotation-aware coordinate mapping (display→unrotated for /Rotate 0/90/180/270 with Wd/Hd viewport math), whiteout=white fillRect, highlight=rgba rect 0.35, text=rasterized to PNG @3x (Bengali-safe, body font stack), draw strokes=rasterized per-element @2x, images=downscaled ≤1600px PNG embed, deleted pages removed, filename-edited.pdf download.
+  - Home: EditorSpotlight banner (dark emerald gradient, dot texture, floating tool glyphs, CTA) + grid card routes to editor.
+  - i18n: 35+ new [bn,en] keys (ed*).
+- NEW TOOLS (31 total): image-watermark (Droplets, 5 options incl. diagonal/position/opacity/size, canvas impl) + text-stats (Sigma, words/chars/lines/sentences/paragraphs/reading-time report → .txt, inputMode both).
+- DEBUGGED & FIXED live: (a) text creation eaten by browser mousedown default-focus blurring fresh contentEditable → onMouseDown preventDefault when tool=text + contenteditable closest() guard in overlay pointerdown; (b) blur-commit race → live-commit onInput; (c) goHome history.back() no-op under Next.js → explicit pushState.
+- E2E verified (Agent Browser): editor empty state, PDF load/render/thumbs, whiteout drag erases line, real-keyboard text typing persists after blur, Bengali text, save → 3019B output; BINARY-VERIFIED export (zlib-inflated content streams: white fillRect exactly covering erased line, /Image Do at correct coords, original text preserved, 2 pages); navigation round-trips home↔editor↔tool; text-stats E2E (300B report); QR regression-free; mobile 390px (spotlight stacks, chips w/ dots, calm bg); desktop clean. lint 0, tsc 0, dev.log clean.
+
+Stage Summary:
+- App now has a real professional PDF editing canvas (erase text, add Bengali/English text + images, draw, highlight, rotate/delete pages, undo, export) — 100% client-side.
+- 31 tools total; eye-friendly aurora background; tighter mobile layout with snap chips + dots.
+- Key artifacts: pdf-editor.tsx, editor-spotlight.tsx, app-store.ts (View editor), history-sync.tsx, background.tsx, registry.ts (+3 tools), image.ts (watermarkImage), data.ts (textStats), i18n.ts (ed* keys), globals.css (fm-ed-text placeholder, dot grid).

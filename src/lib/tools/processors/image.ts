@@ -237,3 +237,82 @@ export async function rotateFlipImage(
   onProgress(100, pLabel("pDone"));
   return out;
 }
+
+/* ─── 5. Watermark ─────────────────────────────────────────────────────── */
+
+export async function watermarkImage(
+  files: File[],
+  opts: ToolOptions,
+  onProgress: ProgressFn
+): Promise<OutputFile[]> {
+  if (!files.length) throw err("needImage");
+  const text = String(opts.wmText ?? "").trim();
+  if (!text) throw err("needImage");
+  const opacity = Math.min(100, Math.max(5, Number(opts.wmOpacity) || 30)) / 100;
+  const scalePct = Math.min(20, Math.max(2, Number(opts.wmScale) || 6)) / 100;
+  const posRaw = String(opts.wmPosition || "center");
+  const diagonal = posRaw === "diagonal";
+  const color = "rgba(255, 255, 255, {o})";
+  const shadow = "rgba(0, 0, 0, {o})";
+  const out: OutputFile[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    onProgress(Math.round((i / files.length) * 92) + 3, pLabel("pImage", i + 1, files.length));
+    const bitmap = await fileToBitmap(f);
+    const { w, h } = imgSize(bitmap);
+    if (!w || !h) {
+      closeBitmap(bitmap);
+      throw err("imageCorrupt", f.name);
+    }
+    const target = sameFormatTarget(f, 0.92);
+    const canvas = drawTo(bitmap, w, h, target.mime === "image/jpeg");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw err("canvasFail");
+
+    const fontSize = Math.max(14, Math.round(Math.min(w, h) * scalePct * 0.6));
+    ctx.font = `600 ${fontSize}px sans-serif`;
+    const metrics = ctx.measureText(text);
+    const tw = metrics.width;
+    const th = fontSize;
+
+    const drawMark = (x: number, y: number, o: number) => {
+      ctx.save();
+      ctx.globalAlpha = o;
+      ctx.fillStyle = color.replace("{o}", "1");
+      ctx.shadowColor = shadow.replace("{o}", "1");
+      ctx.shadowBlur = Math.max(2, fontSize * 0.12);
+      if (diagonal) {
+        const angle = -Math.atan2(h, w);
+        ctx.translate(w / 2, h / 2);
+        ctx.rotate(angle);
+        ctx.fillText(text, -tw / 2, th / 3);
+      } else {
+        ctx.fillText(text, x, y);
+      }
+      ctx.restore();
+    };
+
+    const o = opacity;
+    const pad = Math.round(fontSize * 0.8);
+    if (diagonal) {
+      drawMark(0, 0, o);
+    } else if (posRaw === "center") {
+      drawMark((w - tw) / 2, (h + th * 0.35) / 2, o);
+    } else if (posRaw === "top-left") {
+      drawMark(pad, pad + th * 0.8, o);
+    } else if (posRaw === "top-right") {
+      drawMark(w - tw - pad, pad + th * 0.8, o);
+    } else if (posRaw === "bottom-left") {
+      drawMark(pad, h - pad, o);
+    } else {
+      drawMark(w - tw - pad, h - pad, o);
+    }
+
+    const blob = await canvasToBlob(canvas, target.mime, target.quality);
+    closeBitmap(bitmap);
+    out.push({ name: `${stripExt(f.name)}-watermark.${target.ext}`, blob });
+  }
+  onProgress(100, pLabel("pDone"));
+  return out;
+}

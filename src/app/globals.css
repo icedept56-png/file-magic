@@ -112,13 +112,11 @@
   scrollbar-color: rgba(16, 185, 129, 0.45) transparent;
 }
 
-/* faint grid overlay (light) */
+/* soft dot grid (light) — much calmer than hard lines */
 .fm-grid {
-  background-image:
-    linear-gradient(rgba(5, 150, 105, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(5, 150, 105, 0.05) 1px, transparent 1px);
-  background-size: 52px 52px;
-  mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, black 30%, transparent 75%);
+  background-image: radial-gradient(rgba(5, 150, 105, 0.09) 1px, transparent 1.4px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse 85% 55% at 50% 0%, black 25%, transparent 78%);
 }
 
 /* floating ambient orbs (pastel) */
@@ -137,9 +135,9 @@
   50% { transform: translate3d(30px, -50px, 0) scale(1.12); }
   100% { transform: translate3d(-40px, 30px, 0) scale(0.92); }
 }
-.fm-orb-1 { animation: fm-float-1 22s ease-in-out infinite alternate; }
-.fm-orb-2 { animation: fm-float-2 26s ease-in-out infinite alternate; }
-.fm-orb-3 { animation: fm-float-3 19s ease-in-out infinite alternate; }
+.fm-orb-1 { animation: fm-float-1 34s ease-in-out infinite alternate; }
+.fm-orb-2 { animation: fm-float-2 42s ease-in-out infinite alternate; }
+.fm-orb-3 { animation: fm-float-3 30s ease-in-out infinite alternate; }
 
 /* marquee strip */
 @keyframes fm-marquee {
@@ -201,6 +199,13 @@
     0 2px 4px rgba(13, 31, 22, 0.05),
     0 18px 40px -16px rgba(5, 150, 105, 0.22);
   border-color: rgba(5, 150, 105, 0.18);
+}
+
+/* pdf editor — empty text element placeholder */
+.fm-ed-text:empty::before {
+  content: attr(data-ph);
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

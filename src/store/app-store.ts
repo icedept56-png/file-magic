@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-export type View = "home" | "tool";
+export type View = "home" | "tool" | "editor";
 export type Lang = "bn" | "en";
 
 const RECENT_KEY = "fm-recent-tools";
@@ -73,6 +73,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   openTool: (id) => {
     // keep the user's search/category so returning home restores their context
     get().recordRecent(id);
+    // the PDF editor gets its own full-screen canvas view
+    if (id === "pdf-editor") {
+      set({ view: "editor", activeToolId: id });
+      scrollTop();
+      if (typeof window !== "undefined") {
+        window.history.pushState({ fm: "editor", id }, "");
+      }
+      return;
+    }
     set({ view: "tool", activeToolId: id });
     scrollTop();
     if (typeof window !== "undefined") {
@@ -80,13 +89,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   goHome: () => {
-    if (typeof window !== "undefined" && window.history.state?.fm === "tool") {
-      // let popstate flip the view (keeps the back stack consistent)
-      window.history.back();
-      return;
-    }
+    // NOTE: history.back() is unreliable here — Next.js App Router patches the
+    // history stack. Pushing an explicit home entry is deterministic.
     set({ view: "home", activeToolId: null });
     scrollTop();
+    if (typeof window !== "undefined") {
+      window.history.pushState({ fm: "home" }, "");
+    }
   },
   setSearch: (search) => set({ search }),
   setCategory: (category) => set({ category }),

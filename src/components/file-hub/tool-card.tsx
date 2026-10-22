@@ -27,7 +27,7 @@ export function ToolCard({ tool }: ToolCardProps) {
       onClick={() => openTool(tool.id)}
       aria-label={`${pick(lang, tool.name, tool.nameEn)} — ${pick(lang, tool.desc, tool.descEn)}`}
       style={{ "--glow": tool.glow } as React.CSSProperties}
-      className="fm-card fm-card-hover group relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl p-5 text-left outline-none transition-all focus-visible:ring-2 focus-visible:ring-emerald-500/60 hover:shadow-[0_18px_40px_-16px_var(--glow)]"
+      className="fm-card fm-card-hover group relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl p-4 text-left outline-none transition-all focus-visible:ring-2 focus-visible:ring-emerald-500/60 hover:shadow-[0_18px_40px_-16px_var(--glow)] sm:p-5"
     >
       {/* hover glow + top hairline (tinted by --glow) */}
       <span

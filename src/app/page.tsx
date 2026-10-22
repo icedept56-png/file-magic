@@ -8,11 +8,13 @@ import { Sidebar } from "@/components/file-hub/sidebar";
 import { Navbar } from "@/components/file-hub/navbar";
 import { Hero } from "@/components/file-hub/hero";
 import { RecentTools } from "@/components/file-hub/recent-tools";
+import { EditorSpotlight } from "@/components/file-hub/editor-spotlight";
 import { FeaturedTools } from "@/components/file-hub/featured-tools";
 import { CategoryTabs } from "@/components/file-hub/category-tabs";
 import { ToolGrid } from "@/components/file-hub/tool-grid";
 import { Features } from "@/components/file-hub/features";
 import { Workspace } from "@/components/file-hub/workspace";
+import { PdfEditor } from "@/components/file-hub/pdf-editor";
 import { Footer } from "@/components/file-hub/footer";
 import { HistorySync } from "@/components/file-hub/history-sync";
 
@@ -39,10 +41,21 @@ export default function Home() {
               >
                 <Hero />
                 <RecentTools />
+                <EditorSpotlight />
                 <FeaturedTools />
                 <CategoryTabs />
                 <ToolGrid />
                 <Features />
+              </motion.div>
+            ) : view === "editor" ? (
+              <motion.div
+                key="editor"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <PdfEditor />
               </motion.div>
             ) : (
               <motion.div

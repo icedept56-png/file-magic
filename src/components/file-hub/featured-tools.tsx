@@ -87,7 +87,7 @@ export function FeaturedTools() {
             whileTap={{ scale: 0.99 }}
             onClick={() => openTool(hero.id)}
             aria-label={`${pick(lang, hero.name, hero.nameEn)} — ${pick(lang, hero.desc, hero.descEn)}`}
-            className={`${cardBase} relative col-span-1 flex flex-col items-start gap-6 overflow-hidden p-6 sm:col-span-2 sm:flex-row sm:items-center lg:col-span-3`}
+            className={`${cardBase} relative col-span-1 flex flex-col items-start gap-5 overflow-hidden p-5 sm:col-span-2 sm:flex-row sm:items-center sm:gap-6 sm:p-6 lg:col-span-3`}
           >
             {/* ambient wash */}
             <span
@@ -139,7 +139,7 @@ export function FeaturedTools() {
             whileTap={{ scale: 0.985 }}
             onClick={() => openTool(tool.id)}
             aria-label={`${pick(lang, tool.name, tool.nameEn)} — ${pick(lang, tool.desc, tool.descEn)}`}
-            className={`${cardBase} col-span-1 flex items-center gap-4 p-5`}
+            className={`${cardBase} col-span-1 flex items-center gap-3.5 p-4 sm:gap-4 sm:p-5`}
           >
             <span
               className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl shadow-lg transition-transform duration-300 group-hover:scale-110 ${

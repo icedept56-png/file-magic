@@ -32,7 +32,9 @@ export function CategoryTabs() {
 
   return (
     <section className="mt-6 lg:hidden" aria-label={t("pickCategory")}>
-      <div className="fm-scroll mx-auto flex w-full max-w-6xl gap-2 overflow-x-auto px-4 pb-1 sm:px-6">
+      <div
+        className="fm-scroll mx-auto flex w-full max-w-6xl snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-1 sm:px-6 [mask-image:linear-gradient(to_right,transparent,black_4%,black_96%,transparent)]"
+      >
         {CATEGORIES.map((c) => {
           const active = category === c.id && view === "home";
           return (
@@ -42,7 +44,7 @@ export function CategoryTabs() {
               onClick={() => select(c.id)}
               aria-pressed={active}
               whileTap={{ scale: 0.96 }}
-              className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+              className={`flex shrink-0 snap-start items-center gap-2 rounded-full px-4 py-2 text-sm font-medium shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                 active
                   ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-emerald-500/25"
                   : "border border-emerald-900/[0.07] bg-white text-emerald-900/70 hover:bg-emerald-50"

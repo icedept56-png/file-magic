@@ -298,3 +298,58 @@ export async function generateQr(
   onProgress(100, pLabel("pDone"));
   return [{ name: "qr-code.png", blob }];
 }
+
+/* ─── 9. Text Statistics ───────────────────────────────────────────────── */
+
+export async function textStats(
+  files: File[],
+  opts: ToolOptions,
+  onProgress: ProgressFn
+): Promise<OutputFile[]> {
+  const direct = String(opts.text ?? "");
+  let text = direct;
+  let sourceName = "text";
+  if (!text.trim() && files.length > 0) {
+    text = await files[0].text();
+    sourceName = files[0].name;
+  }
+  if (!text.trim()) throw err("needText");
+
+  const chars = text.length;
+  const charsNoSpace = text.replace(/\s/g, "").length;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const lines = text.split(/\r\n|\r|\n/).length;
+  const sentences = (text.match(/[.!?\u0964\u0965]+/g) ?? []).length;
+  const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim()).length || (text.trim() ? 1 : 0);
+  const readMin = Math.max(1, Math.round(words / 200));
+  const speakMin = Math.max(1, Math.round(words / 130));
+
+  const longest = text
+    .split(/\r\n|\r|\n/)
+    .reduce((a, b) => (b.length > a.length ? b : a), "");
+
+  const report = [
+    `# ${sourceName}`,
+    "",
+    `Characters        : ${chars}`,
+    `Characters (no sp): ${charsNoSpace}`,
+    `Words             : ${words}`,
+    `Lines             : ${lines}`,
+    `Sentences         : ${sentences}`,
+    `Paragraphs        : ${paragraphs}`,
+    `Reading time      : ~${readMin} min (200 wpm)`,
+    `Speaking time     : ~${speakMin} min (130 wpm)`,
+    "",
+    `Longest line (${longest.length} chars):`,
+    longest.slice(0, 300),
+    "",
+  ].join("\n");
+
+  onProgress(100, pLabel("pDone"));
+  return [
+    {
+      name: `${stripExt(sourceName)}-stats.txt`,
+      blob: new Blob([report], { type: "text/plain;charset=utf-8" }),
+    },
+  ];
+}

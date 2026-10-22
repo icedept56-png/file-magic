@@ -41,7 +41,7 @@ export function Navbar() {
 
           {/* right actions */}
           <div className="flex items-center gap-2">
-            {view === "tool" && (
+            {view !== "home" && (
               <Button
                 variant="ghost"
                 size="sm"

@@ -25,7 +25,7 @@ export function Features() {
   ];
 
   return (
-    <section className="mb-14 mt-16">
+    <section className="mb-12 mt-12 sm:mb-14 sm:mt-16">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 14 }}
@@ -54,7 +54,7 @@ export function Features() {
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.3, delay: Math.min(i * 0.06, 0.24) }}
               whileHover={{ y: -4 }}
-              className="fm-card fm-card-hover rounded-2xl p-6 transition-all"
+              className="fm-card fm-card-hover rounded-2xl p-5 transition-all sm:p-6"
             >
               <span
                 className={`grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br shadow-md ${FEATURE_TILE[i % FEATURE_TILE.length]}`}
