@@ -64,3 +64,4 @@ server.log
 /Caddyfile
 /prisma/dev.db
 agent-ctx/
+/.verify/

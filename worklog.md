@@ -190,3 +190,32 @@ Stage Summary:
 - Repo: https://github.com/icedept56-png/file-magic (public, topics-ready, clean history going forward)
 - Key artifacts: vercel.json, README.md (deploy button), .github/workflows/vercel-deploy.yml, conditional-output next.config.ts, hardened .gitignore
 - Note: token shared in chat should be rotated after setup (it grants repo write access)
+
+---
+Task ID: 10
+Agent: main (Z.ai Code)
+Task: TRUE native PDF text editing (no eraser) + premium editing tools — user demand: "টেক্সট সরাসরি মুছে দিতে হবে কোন ইরেজার বাদেই"
+
+Work Log:
+- Built src/lib/pdf/text-surgery.ts — byte-level PDF content-stream interpreter: tokenizer (strings/hex/names/arrays/dicts/inline-images BI..EI/comments), graphics-state replay (cm, q/Q, BT/ET, Tm, Td/TD/T*→line-matrix updates per PDF 32000 §9.4.4, TL, Tf) and surgical removal of text-show operators (Tj/TJ/'/") whose baseline origin falls inside target user-space rects; zlib via native CompressionStreams; re-writes Contents as single FlateDecode stream; heuristic advance mode for redaction (never leaks: operand-bytes × size × 0.5)
+- DEBUGGED to correctness via /home/z/my-project/.verify harness (16 checks): (1) module-duplication pitfall — harness outside project resolved a second pdf-lib → instanceof mismatch → moved harness inside project; (2) Td/TD/T* must update the LINE matrix (spec) — without it consecutive T* lines collapse; (3) Tf size = last number operand; (4) heuristic needed operand length; (5) harness hex-string decoding for assertions. Final: ALL 16 PASS (single-line removal, mid-line-of-3 via Td, heuristic redaction, cross-page isolation, zero false positives)
+- pdf-editor.tsx premium upgrade:
+  - NEW TOOL "টেক্সট এডিট" (editText): pdf.js getTextContent → per-item display-space boxes (viewport.transform × item.transform, rotation-aware), dashed emerald overlays; click → contentEditable element PRE-FILLED with the real string (fix: focus effect must set innerText before focus — deferred ref-sync skips focused nodes), select-all → type to replace; whole-item delete (× / Del / empty-onBlur) registers removedNative[page] for TRUE stream removal
+  - NEW TOOL রিড্যাক্ট (redact): drag rect → black block; export removes underlying text ops (heuristic) then draws solid black — permanent redaction
+  - NEW TOOL শেপ: rect/ellipse/line/arrow (chips), SVG layer with fat invisible hit strokes, drag-draw, delta-move (dragRef lx/ly), rotation-aware export via mapPt + drawRectangle/drawEllipse/drawLine + chevron arrowhead
+  - সিগনেচার: Dialog + signature-pad.tsx (pointer canvas pad, clear/insert) → reusable addImageEl pipeline
+  - পেজ কপি (duplicate): pageOrder model (display order of original indices); export = per-position outDoc.copyPages(pdf,[idx]) (one call per entry — single-call cache would share the leaf object) + page reorder ready; nav shows alivePages.length; thumbs keyed idx-pos
+  - Selected-text controls: font-size slider + Bold toggle bind to selected element; new text rasterized @3x (Bengali-safe)
+  - Export order: 1) text surgery (nativeBox rects + removedNative + redact heuristic) 2) element draw 3) page-order assembly
+- i18n: +17 bn/en keys (edToolEditText, edNoNativeText, edToolRedact, edToolShape, edShape*, edSignature, edSig*, edDupPage, edBold, edSpotDesc rewrite); registry pdf-editor desc/keywords updated
+- E2E (agent-browser, all binary-verified):
+  - Run1: open editor → upload sample.pdf → টেক্সট এডিট → 4 blocks detected → click "Hello World" → pre-filled+focused → typed "Hi Magic" → save → inflate stream: "Hello World" GONE, 3 lines + page2 intact ✅
+  - Run2: রিড্যাক্ট drag over "REMOVE THIS LINE" → save → line GONE from stream, others intact ✅
+  - Run3: native-edit line2 → typed "বাংলা লেখা ঠিক আছে" → signature drawn+inserted → save → line2 GONE, 2 /Image Do ops (Bengali raster + signature) present ✅
+  - Screenshots desktop 1280 + mobile 390: toolbars wrap, native boxes + hint chip render; console clean (only benign Radix DialogContent aria warning); dev.log clean; lint 0; tsc src 0
+- Housekeeping: /.verify/ gitignored (harness stays local)
+
+Stage Summary:
+- The flagship demand is DONE: users can now click the PDF's REAL text and edit/delete it directly — the original operators are surgically removed from the content stream (searchable/selectable-true removal), NOT whiteout paint-over. Plus redaction, shapes, signature, page duplicate/reorder, per-element font size/bold.
+- Key artifacts: src/lib/pdf/text-surgery.ts (new), pdf-editor.tsx (~2080 lines), signature-pad.tsx (new), i18n.ts, registry.ts
+- Verification harness: .verify/surgery-test.ts (16 checks) + verify-download*.ts — reproducible proof

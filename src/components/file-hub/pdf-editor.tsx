@@ -4,18 +4,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   Circle,
+  Copy,
   Download,
   Eraser,
+  EyeOff,
   GripHorizontal,
   Highlighter,
   ImagePlus,
   Loader2,
+  Minus,
   MousePointer2,
+  PenTool,
   RotateCw,
+  Shapes,
   Square,
+  TextCursorInput,
   Trash2,
   Type,
   Undo2,
@@ -27,9 +34,12 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useT } from "@/lib/i18n";
+import { removeTextInRects, type UserRect } from "@/lib/pdf/text-surgery";
 import { downloadBlob, formatBytes } from "@/lib/tools/helpers";
 import { useAppStore } from "@/store/app-store";
+import { SignaturePad } from "./signature-pad";
 
 /* ── pdfjs types (type-query only, no runtime import) ──────────────────── */
 type PdfJsDoc = Awaited<ReturnType<typeof import("pdfjs-dist").getDocument>["promise"]>;
@@ -41,17 +51,56 @@ type Pt = { x: number; y: number };
 type EditorEl =
   | { id: string; type: "whiteout"; x: number; y: number; w: number; h: number }
   | { id: string; type: "highlight"; x: number; y: number; w: number; h: number; color: string }
-  | { id: string; type: "text"; x: number; y: number; w: number; text: string; size: number; color: string; bold: boolean }
+  | {
+      id: string;
+      type: "text";
+      x: number;
+      y: number;
+      w: number;
+      text: string;
+      size: number;
+      color: string;
+      bold: boolean;
+      /** present when this box was created from the PDF's own text */
+      nativeId?: number;
+      /** original text bbox (display pt) — drives true stream removal on export */
+      nativeBox?: { x: number; y: number; w: number; h: number };
+    }
   | { id: string; type: "image"; x: number; y: number; w: number; h: number; dataUrl: string }
-  | { id: string; type: "draw"; color: string; width: number; points: Pt[] };
+  | { id: string; type: "draw"; color: string; width: number; points: Pt[] }
+  | { id: string; type: "redact"; x: number; y: number; w: number; h: number }
+  | {
+      id: string;
+      type: "shape";
+      shape: "rect" | "ellipse" | "line" | "arrow";
+      x0: number;
+      y0: number;
+      x1: number;
+      y1: number;
+      color: string;
+      width: number;
+    };
 
 type Snapshot = {
   elements: Record<number, EditorEl[]>;
   deleted: number[];
   rotation: Record<number, number>;
+  removedNative: Record<number, number[]>;
+  pageOrder: number[];
 };
 
-type ToolId = "select" | "whiteout" | "highlight" | "text" | "draw";
+type ToolId = "select" | "editText" | "whiteout" | "redact" | "highlight" | "text" | "shape" | "draw";
+
+type NativeBox = {
+  idx: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  str: string;
+  size: number;
+  baselineY: number;
+};
 
 const MAX_PAGES = 300;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -86,10 +135,32 @@ function rotateElsCW(els: EditorEl[], Hd: number): EditorEl[] {
     }
     if (el.type === "text") {
       // rotate the anchor box; the text re-renders horizontal in the new orientation
-      return { ...el, x: Hd - el.y - el.size, y: el.x };
+      const nb = el.nativeBox
+        ? { x: Hd - el.nativeBox.y - el.nativeBox.h, y: el.nativeBox.x, w: el.nativeBox.h, h: el.nativeBox.w }
+        : undefined;
+      return { ...el, x: Hd - el.y - el.size, y: el.x, nativeBox: nb };
+    }
+    if (el.type === "shape") {
+      const p0 = { x: Hd - el.y0, y: el.x0 };
+      const p1 = { x: Hd - el.y1, y: el.x1 };
+      return { ...el, x0: p0.x, y0: p0.y, x1: p1.x, y1: p1.y };
     }
     return { ...el, x: Hd - el.y - el.h, y: el.x, w: el.h, h: el.w };
   });
+}
+
+/** map a single display point to unrotated display space (y still down) */
+function mapPt(x: number, y: number, rot: number, Wd: number, Hd: number): Pt {
+  switch (((rot % 360) + 360) % 360) {
+    case 90:
+      return { x: y, y: Wd - x };
+    case 180:
+      return { x: Wd - x, y: Hd - y };
+    case 270:
+      return { x: Hd - y, y: x };
+    default:
+      return { x, y };
+  }
 }
 
 function hexToRgb01(hex: string): { r: number; g: number; b: number } {
@@ -126,21 +197,29 @@ export function PdfEditor() {
   const [elements, setElements] = useState<Record<number, EditorEl[]>>({});
   const [deleted, setDeleted] = useState<number[]>([]);
   const [rotation, setRotation] = useState<Record<number, number>>({});
+  const [removedNative, setRemovedNative] = useState<Record<number, number[]>>({});
+  const [pageOrder, setPageOrder] = useState<number[]>([]);
   const undoStack = useRef<Snapshot[]>([]);
+
+  /* pdf's own text items (display-space boxes) for direct editing */
+  const [nativeBoxes, setNativeBoxes] = useState<Record<number, NativeBox[]>>({});
+  const [scanningText, setScanningText] = useState(false);
 
   /* ui */
   const [tool, setTool] = useState<ToolId>("select");
   const [color, setColor] = useState("#f59e0b");
   const [textSize, setTextSize] = useState(16);
   const [strokeW, setStrokeW] = useState(3);
+  const [shapeKind, setShapeKind] = useState<"rect" | "ellipse" | "line" | "arrow">("rect");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [sigOpen, setSigOpen] = useState(false);
 
   /* interaction drafts (state for visual, refs for math) */
   const [draftRect, setDraftRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [draftPath, setDraftPath] = useState<Pt[] | null>(null);
   const dragRef = useRef<
-    | { mode: "move"; id: string; offX: number; offY: number }
+    | { mode: "move"; id: string; offX: number; offY: number; lx: number; ly: number }
     | { mode: "resize"; id: string; x0: number; y0: number; w0: number; h0: number; ratio: number }
     | { mode: "rect"; x0: number; y0: number }
     | { mode: "draw" }
@@ -159,6 +238,8 @@ export function PdfEditor() {
 
   const hasEdits =
     Object.values(elements).some((a) => a.length > 0) || deleted.length > 0 ||
+    Object.values(removedNative).some((a) => a.length > 0) ||
+    (pageOrder.length > 0 && pageOrder.some((v, i) => v !== i)) ||
     Object.values(rotation).some((r) => r !== 0);
 
   const pageEls = elements[pageNum] ?? [];
@@ -172,9 +253,11 @@ export function PdfEditor() {
         elements: structuredClone(elements),
         deleted: [...deleted],
         rotation: { ...rotation },
+        removedNative: structuredClone(removedNative),
+        pageOrder: [...pageOrder],
       },
     ];
-  }, [elements, deleted, rotation]);
+  }, [elements, deleted, rotation, removedNative, pageOrder]);
 
   const undo = useCallback(() => {
     const snap = undoStack.current.pop();
@@ -182,6 +265,8 @@ export function PdfEditor() {
     setElements(snap.elements);
     setDeleted(snap.deleted);
     setRotation(snap.rotation);
+    setRemovedNative(snap.removedNative);
+    setPageOrder(snap.pageOrder);
     setSelectedId(null);
   }, []);
 
@@ -210,6 +295,9 @@ export function PdfEditor() {
         setElements({});
         setDeleted([]);
         setRotation({});
+        setRemovedNative({});
+        setPageOrder(Array.from({ length: doc.numPages }, (_, k) => k));
+        setNativeBoxes({});
         setThumbs([]);
         setZoom(1);
         setSelectedId(null);
@@ -296,6 +384,13 @@ export function PdfEditor() {
     if (focusNewText.current) {
       const el = textRefs.current[focusNewText.current];
       if (el) {
+        // fill the initial content BEFORE focusing — native boxes carry the
+        // PDF's own text, and the deferred ref-sync skips focused nodes
+        const cur = (elsRef.current[pageNumRef.current] ?? []).find(
+          (x) => x.id === focusNewText.current
+        );
+        const latest = cur && cur.type === "text" ? cur.text : "";
+        if (el.innerText !== latest) el.innerText = latest;
         el.focus();
         const sel = window.getSelection();
         if (sel) sel.selectAllChildren(el);
@@ -303,6 +398,64 @@ export function PdfEditor() {
       focusNewText.current = null;
     }
   }, [selectedId, elements]);
+
+  /* ── detect the PDF's own text (for direct native editing) ─────────── */
+  useEffect(() => {
+    if (!pdfDoc) return;
+    if (nativeBoxes[pageNum]) return; // cached for this page + rotation
+    let cancelled = false;
+    setScanningText(true);
+    (async () => {
+      try {
+        const page: PdfJsPage = await pdfDoc.getPage(pageNum + 1);
+        const vp1 = page.getViewport({ scale: 1, rotation: totalRot });
+        const content = await page.getTextContent();
+        if (cancelled) return;
+        const boxes: NativeBox[] = [];
+        content.items.forEach((it, idx) => {
+          if (!("str" in it) || !it.str || !it.str.trim()) return;
+          const item = it as { str: string; width: number; height: number; transform: number[] };
+          // viewport.transform × item.transform → display space (pt, y-down)
+          const vt = vp1.transform;
+          const tr = item.transform;
+          const tx = [
+            vt[0] * tr[0] + vt[2] * tr[1],
+            vt[1] * tr[0] + vt[3] * tr[1],
+            vt[0] * tr[2] + vt[2] * tr[3],
+            vt[1] * tr[2] + vt[3] * tr[3],
+            vt[0] * tr[4] + vt[2] * tr[5] + vt[4],
+            vt[1] * tr[4] + vt[3] * tr[5] + vt[5],
+          ];
+          const fontH = Math.hypot(tx[2], tx[3]) || item.height || 10;
+          const dir = Math.hypot(tx[0], tx[1]) || 1;
+          const w = Math.abs(item.width) || item.str.length * fontH * 0.5;
+          const bx0 = tx[4];
+          const by0 = tx[5];
+          const bx1 = bx0 + (tx[0] / dir) * w;
+          const by1 = by0 + (tx[1] / dir) * w;
+          boxes.push({
+            idx,
+            x: Math.min(bx0, bx1) - 0.5,
+            y: Math.min(by0, by1) - 0.88 * fontH,
+            w: Math.abs(bx1 - bx0) + 1,
+            h: 1.16 * fontH + Math.abs(by1 - by0),
+            str: item.str,
+            size: fontH,
+            baselineY: by0,
+          });
+        });
+        setNativeBoxes((m) => ({ ...m, [pageNum]: boxes }));
+      } catch {
+        if (!cancelled) setNativeBoxes((m) => ({ ...m, [pageNum]: [] }));
+      } finally {
+        if (!cancelled) setScanningText(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // boxes live in the rotated frame — re-scan when rotation changes
+  }, [pdfDoc, pageNum, totalRot, nativeBoxes]);
 
   /* keyboard: delete / escape */
   useEffect(() => {
@@ -318,10 +471,7 @@ export function PdfEditor() {
       if ((e.key === "Delete" || e.key === "Backspace") && selectedId && !editing) {
         e.preventDefault();
         pushUndo();
-        setElements((m) => ({
-          ...m,
-          [pageNum]: (m[pageNum] ?? []).filter((el) => el.id !== selectedId),
-        }));
+        deleteElement(pageNum, selectedId);
         setSelectedId(null);
       }
     };
@@ -359,6 +509,75 @@ export function PdfEditor() {
 
   const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
 
+  /* ── element deletion (registers true text removal for native boxes) ── */
+  const deleteElement = useCallback((pageIdx: number, id: string) => {
+    const el = (elsRef.current[pageIdx] ?? []).find((x) => x.id === id);
+    if (el && el.type === "text" && typeof el.nativeId === "number") {
+      const nid = el.nativeId;
+      setRemovedNative((m) => ({ ...m, [pageIdx]: [...(m[pageIdx] ?? []), nid] }));
+    }
+    setElements((m) => ({
+      ...m,
+      [pageIdx]: (m[pageIdx] ?? []).filter((x) => x.id !== id),
+    }));
+  }, []);
+
+  /* ── convert the PDF's own text into an editable element ─────────── */
+  const createNativeText = (nb: NativeBox) => {
+    // select the element again if this text item is already being edited
+    const existing = (elsRef.current[pageNum] ?? []).find(
+      (x) => x.type === "text" && x.nativeId === nb.idx
+    );
+    if (existing) {
+      setSelectedId(existing.id);
+      focusNewText.current = existing.id;
+      setTool("select");
+      return;
+    }
+    pushUndo();
+    const id = uid();
+    updateEls((els) => [
+      ...els,
+      {
+        id,
+        type: "text",
+        x: nb.x,
+        y: nb.baselineY - nb.size * 0.85,
+        w: nb.w + 8,
+        text: nb.str,
+        size: nb.size,
+        color: "#111827",
+        bold: false,
+        nativeId: nb.idx,
+        nativeBox: { x: nb.x, y: nb.y, w: nb.w, h: nb.h },
+      },
+    ]);
+    setSelectedId(id);
+    focusNewText.current = id;
+    setTool("select");
+  };
+
+  /* ── page ops: duplicate + reorder ──────────────────────────────── */
+  const duplicatePage = () => {
+    if (alivePages.length >= MAX_PAGES) return;
+    pushUndo();
+    const pos = pageOrder.indexOf(pageNum);
+    setPageOrder((o) => [...o.slice(0, pos + 1), pageNum, ...o.slice(pos + 1)]);
+    toast.success(lang === "en" ? "Page duplicated" : "পেজ কপি হয়েছে");
+  };
+
+  const movePage = (dir: -1 | 1) => {
+    const pos = pageOrder.indexOf(pageNum);
+    const swap = pos + dir;
+    if (swap < 0 || swap >= pageOrder.length) return;
+    pushUndo();
+    setPageOrder((o) => {
+      const n = [...o];
+      [n[pos], n[swap]] = [n[swap], n[pos]];
+      return n;
+    });
+  };
+
   /* ── pointer interactions ────────────────────────────────────────── */
   const onPointerDown = (e: React.PointerEvent) => {
     if (!pdfDoc || e.button !== 0) return;
@@ -388,19 +607,29 @@ export function PdfEditor() {
             ratio: el.w / el.h,
           };
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-        } else if (el && el.type !== "draw" && grip) {
+        } else if (el && el.type === "shape" && !grip) {
+          pushUndo();
+          const p = toPt(e);
+          dragRef.current = { mode: "move", id, offX: p.x, offY: p.y, lx: p.x, ly: p.y };
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        } else if (el && el.type !== "draw" && el.type !== "shape" && grip) {
           // text moves via its grip so clicks inside the box place the caret
           pushUndo();
           const p = toPt(e);
-          dragRef.current = { mode: "move", id, offX: p.x - el.x, offY: p.y - el.y };
+          dragRef.current = { mode: "move", id, offX: p.x - el.x, offY: p.y - el.y, lx: p.x, ly: p.y };
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         }
       } else if (id) {
         const el = pageEls.find((x) => x.id === id);
-        if (el && el.type !== "draw" && el.type !== "text") {
+        if (el && el.type === "shape") {
           const p = toPt(e);
           pushUndo();
-          dragRef.current = { mode: "move", id, offX: p.x - el.x, offY: p.y - el.y };
+          dragRef.current = { mode: "move", id, offX: p.x, offY: p.y, lx: p.x, ly: p.y };
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        } else if (el && el.type !== "draw" && el.type !== "text") {
+          const p = toPt(e);
+          pushUndo();
+          dragRef.current = { mode: "move", id, offX: p.x - el.x, offY: p.y - el.y, lx: p.x, ly: p.y };
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         } else if (el && el.type === "text") {
           // clicking a text element places the caret inside it
@@ -410,7 +639,7 @@ export function PdfEditor() {
       return;
     }
 
-    if (tool === "whiteout" || tool === "highlight") {
+    if (tool === "whiteout" || tool === "highlight" || tool === "redact" || tool === "shape") {
       const p = toPt(e);
       pushUndo();
       dragRef.current = { mode: "rect", x0: p.x, y0: p.y };
@@ -456,9 +685,20 @@ export function PdfEditor() {
     const p = toPt(e);
 
     if (drag.mode === "move") {
+      const dx = p.x - drag.lx;
+      const dy = p.y - drag.ly;
       updateEls((els) =>
         els.map((el) => {
           if (el.id !== drag.id || el.type === "draw") return el;
+          if (el.type === "shape") {
+            return {
+              ...el,
+              x0: clamp(el.x0 + dx, -disp.w, disp.w * 2),
+              y0: clamp(el.y0 + dy, -disp.h, disp.h * 2),
+              x1: clamp(el.x1 + dx, -disp.w, disp.w * 2),
+              y1: clamp(el.y1 + dy, -disp.h, disp.h * 2),
+            };
+          }
           const w = el.type === "text" ? Math.min(el.w, disp.w) : el.w;
           const h = el.type === "text" ? el.size : el.h;
           return {
@@ -468,6 +708,7 @@ export function PdfEditor() {
           };
         })
       );
+      dragRef.current = { ...drag, lx: p.x, ly: p.y };
     } else if (drag.mode === "resize") {
       updateEls((els) =>
         els.map((el) => {
@@ -503,7 +744,7 @@ export function PdfEditor() {
     }
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e?: React.PointerEvent) => {
     const drag = dragRef.current;
     dragRef.current = null;
     if (!drag) return;
@@ -512,12 +753,27 @@ export function PdfEditor() {
       const { x, y, w, h } = draftRect;
       setDraftRect(null);
       if (w < 3 || h < 3) return; // accidental click
-      updateEls((els) => [
-        ...els,
-        tool === "whiteout"
-          ? { id: uid(), type: "whiteout", x, y, w, h }
-          : { id: uid(), type: "highlight", x, y, w, h, color },
-      ]);
+      if (tool === "whiteout") {
+        updateEls((els) => [...els, { id: uid(), type: "whiteout", x, y, w, h }]);
+      } else if (tool === "highlight") {
+        updateEls((els) => [...els, { id: uid(), type: "highlight", x, y, w, h, color }]);
+      } else if (tool === "redact") {
+        updateEls((els) => [...els, { id: uid(), type: "redact", x, y, w, h }]);
+      } else if (tool === "shape") {
+        let x0 = drag.x0;
+        let y0 = drag.y0;
+        let x1 = x + w;
+        let y1 = y + h;
+        if ((shapeKind === "line" || shapeKind === "arrow") && e) {
+          const p = toPt(e);
+          x1 = p.x;
+          y1 = p.y;
+        }
+        updateEls((els) => [
+          ...els,
+          { id: uid(), type: "shape", shape: shapeKind, x0, y0, x1, y1, color, width: strokeW },
+        ]);
+      }
     }
     if (drag.mode === "draw" && draftPath) {
       const pts = draftPath;
@@ -533,8 +789,11 @@ export function PdfEditor() {
 
   /* ── page ops ────────────────────────────────────────────────────── */
   const alivePages = useMemo(
-    () => Array.from({ length: pageCount }, (_, i) => i).filter((i) => !deleted.includes(i)),
-    [pageCount, deleted]
+    () =>
+      (pageOrder.length ? pageOrder : Array.from({ length: pageCount }, (_, i) => i)).filter(
+        (i) => !deleted.includes(i)
+      ),
+    [pageOrder, pageCount, deleted]
   );
 
   const gotoPage = (dir: 1 | -1) => {
@@ -575,7 +834,32 @@ export function PdfEditor() {
     setSelectedId(null);
   };
 
-  /* ── image insert ────────────────────────────────────────────────── */
+  /* ── image insert (file picker + signature pad share this) ──────── */
+  const addImageEl = (dataUrl: string) => {
+    const img = new Image();
+    img.onload = () => {
+      // fit into page (max 60% of the shorter side)
+      const maxW = disp.w * 0.6;
+      const maxH = disp.h * 0.6;
+      const r = img.width / img.height;
+      let w = maxW;
+      let h = w / r;
+      if (h > maxH) {
+        h = maxH;
+        w = h * r;
+      }
+      pushUndo();
+      const id = uid();
+      updateEls((els) => [
+        ...els,
+        { id, type: "image", x: (disp.w - w) / 2, y: (disp.h - h) / 2, w, h, dataUrl },
+      ]);
+      setSelectedId(id);
+      setTool("select");
+    };
+    img.src = dataUrl;
+  };
+
   const insertImage = (file: File | undefined | null) => {
     if (!file) return;
     const reader = new FileReader();
@@ -589,41 +873,14 @@ export function PdfEditor() {
         c.width = Math.max(1, Math.round(img.width * k));
         c.height = Math.max(1, Math.round(img.height * k));
         c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-        const dataUrl = c.toDataURL("image/png");
-
-        // fit into page (max 60% of the shorter side)
-        const maxW = disp.w * 0.6;
-        const maxH = disp.h * 0.6;
-        const r = c.width / c.height;
-        let w = maxW;
-        let h = w / r;
-        if (h > maxH) {
-          h = maxH;
-          w = h * r;
-        }
-        pushUndo();
-        const id = uid();
-        updateEls((els) => [
-          ...els,
-          {
-            id,
-            type: "image",
-            x: (disp.w - w) / 2,
-            y: (disp.h - h) / 2,
-            w,
-            h,
-            dataUrl,
-          },
-        ]);
-        setSelectedId(id);
-        setTool("select");
+        addImageEl(c.toDataURL("image/png"));
       };
       img.src = reader.result as string;
     };
     reader.readAsDataURL(file);
   };
 
-  /* ── export via pdf-lib ──────────────────────────────────────────── */
+  /* ── export via pdf-lib: true text surgery + element rendering ───── */
   const savePdf = async () => {
     if (!pdfDoc || !bytesRef.current || saving) return;
     setSaving(true);
@@ -651,16 +908,109 @@ export function PdfEditor() {
           const m = mapRect(x, y, w, h, rot, Wd, Hd);
           return { x: m.x, y: Hu - m.y - m.h, width: m.w, height: m.h };
         };
+        const placePt = (x: number, y: number) => {
+          const m = mapPt(x, y, rot, Wd, Hd);
+          return { x: m.x, y: Hu - m.y };
+        };
 
+        /* ── 1) TRUE TEXT SURGERY — remove the original operators ──── */
+        const rects: UserRect[] = [];
+        for (const el of els) {
+          if (el.type === "text" && el.nativeBox) {
+            // the ORIGINAL text bbox (display pt) → user space
+            const nb = el.nativeBox;
+            const m = mapRect(nb.x, nb.y, nb.w, nb.h, rot, Wd, Hd);
+            rects.push({
+              x0: m.x - 1,
+              y0: Hu - m.y - m.h - 1,
+              x1: m.x + m.w + 1,
+              y1: Hu - m.y + 1,
+            });
+          } else if (el.type === "redact") {
+            const m = mapRect(el.x, el.y, el.w, el.h, rot, Wd, Hd);
+            rects.push({
+              x0: m.x - 0.5,
+              y0: Hu - m.y - m.h - 0.5,
+              x1: m.x + m.w + 0.5,
+              y1: Hu - m.y + 0.5,
+              heuristic: true,
+            });
+          }
+        }
+        for (const idx of removedNative[i] ?? []) {
+          // whole text item deleted without replacement
+          const nb = nativeBoxes[i]?.find((b) => b.idx === idx);
+          if (!nb) continue;
+          const m = mapRect(nb.x, nb.y, nb.w, nb.h, rot, Wd, Hd);
+          rects.push({
+            x0: m.x - 1,
+            y0: Hu - m.y - m.h - 1,
+            x1: m.x + m.w + 1,
+            y1: Hu - m.y + 1,
+          });
+        }
+        if (rects.length > 0) {
+          await removeTextInRects(pdf, i, rects);
+        }
+
+        /* ── 2) draw the annotation / replacement elements ─────────── */
         for (const el of els) {
           if (el.type === "whiteout") {
             page.drawRectangle({ ...place(el.x, el.y, el.w, el.h), color: rgb(1, 1, 1) });
           } else if (el.type === "highlight") {
             const c = hexToRgb01(el.color);
             page.drawRectangle({ ...place(el.x, el.y, el.w, el.h), color: rgb(c.r, c.g, c.b), opacity: 0.35 });
+          } else if (el.type === "redact") {
+            page.drawRectangle({ ...place(el.x, el.y, el.w, el.h), color: rgb(0, 0, 0) });
           } else if (el.type === "image") {
             const png = await pdf.embedPng(el.dataUrl);
             page.drawImage(png, place(el.x, el.y, el.w, el.h));
+          } else if (el.type === "shape") {
+            const c = hexToRgb01(el.color);
+            const col = rgb(c.r, c.g, c.b);
+            if (el.shape === "rect") {
+              const p0 = placePt(Math.min(el.x0, el.x1), Math.min(el.y0, el.y1));
+              const p1 = placePt(Math.max(el.x0, el.x1), Math.max(el.y0, el.y1));
+              page.drawRectangle({
+                x: p0.x,
+                y: p1.y,
+                width: Math.abs(p1.x - p0.x),
+                height: Math.abs(p1.y - p0.y),
+                borderColor: col,
+                borderWidth: el.width,
+              });
+            } else if (el.shape === "ellipse") {
+              const a = placePt(el.x0, el.y0);
+              const b = placePt(el.x1, el.y1);
+              page.drawEllipse({
+                x: (a.x + b.x) / 2,
+                y: (a.y + b.y) / 2,
+                xScale: Math.abs(b.x - a.x) / 2,
+                yScale: Math.abs(b.y - a.y) / 2,
+                borderColor: col,
+                borderWidth: el.width,
+              });
+            } else {
+              const a = placePt(el.x0, el.y0);
+              const b = placePt(el.x1, el.y1);
+              page.drawLine({ start: a, end: b, color: col, thickness: el.width });
+              if (el.shape === "arrow") {
+                // chevron head
+                const ang = Math.atan2(b.y - a.y, b.x - a.x);
+                const hs = Math.max(8, el.width * 3.2);
+                for (const off of [Math.PI * 0.82, -Math.PI * 0.82]) {
+                  page.drawLine({
+                    start: b,
+                    end: {
+                      x: b.x + Math.cos(ang + off) * hs,
+                      y: b.y + Math.sin(ang + off) * hs,
+                    },
+                    color: col,
+                    thickness: el.width,
+                  });
+                }
+              }
+            }
           } else if (el.type === "text") {
             const text = el.text.trim() ? el.text : "";
             if (!text) continue;
@@ -714,12 +1064,25 @@ export function PdfEditor() {
         }
       }
 
-      for (const i of [...deleted].sort((a, b) => b - a)) {
-        if (i < pdf.getPageCount()) pdf.removePage(i);
+      /* ── 3) assemble final page order (delete / reorder / duplicate) ── */
+      const order = alivePages.filter((i) => i < pdf.getPageCount());
+      const identity =
+        order.length === pdf.getPageCount() && order.every((v, k) => v === k);
+      let outBytes: Uint8Array;
+      if (identity) {
+        outBytes = await pdf.save();
+      } else {
+        const outDoc = await PDFDocument.create();
+        // one copyPages call per position: repeated indices get independent
+        // copies (a single call would share one cached page object)
+        for (const idx of order) {
+          const [p] = await outDoc.copyPages(pdf, [idx]);
+          outDoc.addPage(p);
+        }
+        outBytes = await outDoc.save();
       }
 
-      const out = await pdf.save();
-      const blob = new Blob([out as unknown as BlobPart], { type: "application/pdf" });
+      const blob = new Blob([outBytes as unknown as BlobPart], { type: "application/pdf" });
       const base = fileNameRef.current.replace(/\.pdf$/i, "");
       downloadBlob(blob, `${base}-edited.pdf`);
       setSavedBytes(blob.size);
@@ -735,12 +1098,20 @@ export function PdfEditor() {
   const canvasW = disp.w * fitScale;
   const canvasH = disp.h * fitScale;
   const selected = pageEls.find((el) => el.id === selectedId) ?? null;
+  const selectedText = selected && selected.type === "text" ? selected : null;
+  const boxes = nativeBoxes[pageNum] ?? [];
+  const editedNativeIds = new Set(
+    pageEls.filter((x) => x.type === "text" && typeof x.nativeId === "number").map((x) => (x as { nativeId: number }).nativeId)
+  );
 
   const TOOL_BTN: { id: ToolId; icon: typeof Type; label: string }[] = [
     { id: "select", icon: MousePointer2, label: t("edToolSelect") },
+    { id: "editText", icon: TextCursorInput, label: t("edToolEditText") },
     { id: "whiteout", icon: Eraser, label: t("edToolWhiteout") },
+    { id: "redact", icon: EyeOff, label: t("edToolRedact") },
     { id: "highlight", icon: Highlighter, label: t("edToolHighlight") },
     { id: "text", icon: Type, label: t("edToolText") },
+    { id: "shape", icon: Shapes, label: t("edToolShape") },
     { id: "draw", icon: Circle, label: t("edToolDraw") },
   ];
 
@@ -785,7 +1156,7 @@ export function PdfEditor() {
               </div>
               <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs text-emerald-900/50">
                 {[
-                  `${t("edToolWhiteout")} · ${t("edToolText")} · ${t("edToolImage")} · ${t("edToolDraw")}`,
+                  `${t("edToolEditText")} · ${t("edToolWhiteout")} · ${t("edToolText")} · ${t("edToolImage")} · ${t("edToolRedact")} · ${t("edToolShape")} · ${t("edSignature")}`,
                   t("edRotate"),
                   t("edDeletePage"),
                 ].map((chip, i) => (
@@ -847,7 +1218,7 @@ export function PdfEditor() {
               <ChevronLeft className="h-4 w-4" />
             </button>
             <span className="min-w-14 text-center text-xs font-semibold tabular-nums text-emerald-950">
-              {num(pageNum + 1)} / {num(pageCount)}
+              {num(pageNum + 1)} / {num(alivePages.length)}
             </span>
             <button
               type="button"
@@ -879,6 +1250,15 @@ export function PdfEditor() {
               className="rounded-xl border border-emerald-900/[0.07] bg-white p-2 text-emerald-900/70 shadow-sm transition hover:bg-emerald-50 hover:text-emerald-900"
             >
               <RotateCw className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={duplicatePage}
+              aria-label={t("edDupPage")}
+              title={t("edDupPage")}
+              className="rounded-xl border border-emerald-900/[0.07] bg-white p-2 text-emerald-900/70 shadow-sm transition hover:bg-emerald-50 hover:text-emerald-900"
+            >
+              <Copy className="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -949,6 +1329,16 @@ export function PdfEditor() {
             }}
           />
 
+          {/* signature pad */}
+          <button
+            type="button"
+            onClick={() => setSigOpen(true)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-900/[0.07] bg-white px-2.5 text-xs font-semibold text-emerald-900/70 shadow-sm transition hover:bg-emerald-50"
+          >
+            <PenTool className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t("edSignature")}</span>
+          </button>
+
           <span className="mx-1 hidden h-5 w-px bg-emerald-900/10 sm:block" />
 
           {/* color */}
@@ -962,6 +1352,36 @@ export function PdfEditor() {
               className="h-5 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
             />
           </label>
+
+          {/* shape kind chips */}
+          {tool === "shape" && (
+            <span className="inline-flex h-8 items-center gap-1 rounded-lg border border-emerald-900/[0.07] bg-white px-1 shadow-sm">
+              {(
+                [
+                  ["rect", Square, t("edShapeRect")],
+                  ["ellipse", Circle, t("edShapeEllipse")],
+                  ["line", Minus, t("edShapeLine")],
+                  ["arrow", ArrowUpRight, t("edShapeArrow")],
+                ] as const
+              ).map(([k, Icon, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setShapeKind(k)}
+                  aria-pressed={shapeKind === k}
+                  aria-label={label}
+                  title={label}
+                  className={`grid h-6 w-6 place-items-center rounded-md transition ${
+                    shapeKind === k
+                      ? "bg-rose-500 text-white shadow-sm"
+                      : "text-emerald-900/60 hover:bg-emerald-50"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </button>
+              ))}
+            </span>
+          )}
 
           {/* size slider (draw) */}
           {tool === "draw" && (
@@ -979,19 +1399,70 @@ export function PdfEditor() {
             </label>
           )}
 
-          {/* text size (text) */}
-          {tool === "text" && (
+          {/* shape stroke width */}
+          {tool === "shape" && (
             <label className="inline-flex h-8 items-center gap-2 rounded-lg border border-emerald-900/[0.07] bg-white px-2.5 text-xs font-semibold text-emerald-900/70 shadow-sm">
-              {textSize}px
+              {strokeW}px
+              <input
+                type="range"
+                min={1}
+                max={24}
+                value={strokeW}
+                onChange={(e) => setStrokeW(Number(e.target.value))}
+                aria-label={t("edStroke")}
+                className="h-1.5 w-16 accent-rose-600"
+              />
+            </label>
+          )}
+
+          {/* text size — new text tool or the selected text element */}
+          {(tool === "text" || selectedText) && (
+            <label className="inline-flex h-8 items-center gap-2 rounded-lg border border-emerald-900/[0.07] bg-white px-2.5 text-xs font-semibold text-emerald-900/70 shadow-sm">
+              {selectedText ? Math.round(selectedText.size) : textSize}px
               <input
                 type="range"
                 min={8}
                 max={72}
-                value={textSize}
-                onChange={(e) => setTextSize(Number(e.target.value))}
+                value={selectedText ? Math.round(selectedText.size) : textSize}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (selectedText) {
+                    updateEls((els) =>
+                      els.map((x) =>
+                        x.id === selectedText.id && x.type === "text" ? { ...x, size: v } : x
+                      )
+                    );
+                  } else {
+                    setTextSize(v);
+                  }
+                }}
                 aria-label={t("edTextSize")}
                 className="h-1.5 w-16 accent-rose-600"
               />
+              {selectedText && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateEls((els) =>
+                      els.map((x) =>
+                        x.id === selectedText.id && x.type === "text"
+                          ? { ...x, bold: !x.bold }
+                          : x
+                      )
+                    )
+                  }
+                  aria-pressed={selectedText.bold}
+                  aria-label={t("edBold")}
+                  title={t("edBold")}
+                  className={`grid h-6 w-6 place-items-center rounded-md text-[11px] font-black transition ${
+                    selectedText.bold
+                      ? "bg-rose-500 text-white shadow-sm"
+                      : "text-emerald-900/60 hover:bg-emerald-50"
+                  }`}
+                >
+                  B
+                </button>
+              )}
             </label>
           )}
 
@@ -1035,9 +1506,9 @@ export function PdfEditor() {
           aria-label={t("edThumbs")}
           className="fm-scroll hidden w-24 shrink-0 flex-col gap-2 overflow-y-auto md:flex"
         >
-          {alivePages.map((i) => (
+          {alivePages.map((i, pos) => (
             <button
-              key={i}
+              key={`${i}-${pos}`}
               type="button"
               onClick={() => {
                 setPageNum(i);
@@ -1069,6 +1540,21 @@ export function PdfEditor() {
           ref={stageRef}
           className="fm-scroll flex-1 overflow-auto rounded-2xl border border-emerald-900/[0.06] bg-emerald-50/50 p-4 [background-image:radial-gradient(rgba(5,150,105,0.09)_1px,transparent_1px)] [background-size:18px_18px]"
         >
+          {tool === "editText" && (
+            <div className="mb-3 flex justify-center">
+              <span className="rounded-full border border-emerald-600/15 bg-white/90 px-3 py-1 text-center text-[11px] font-semibold text-emerald-900/70 shadow-sm">
+                {scanningText
+                  ? lang === "en"
+                    ? "Scanning text…"
+                    : "টেক্সট খোঁজা হচ্ছে…"
+                  : boxes.length === 0
+                    ? t("edNoNativeText")
+                    : lang === "en"
+                      ? `${boxes.length} text block${boxes.length > 1 ? "s" : ""} — click one to edit or delete it directly`
+                      : `${num(boxes.length)} টি টেক্সট ব্লক — ক্লিক করে সরাসরি এডিট বা মুছে ফেলুন`}
+              </span>
+            </div>
+          )}
           <div
             className="relative mx-auto bg-white shadow-[0_18px_50px_-18px_rgba(13,31,22,0.35)]"
             style={{ width: canvasW, height: canvasH }}
@@ -1078,7 +1564,14 @@ export function PdfEditor() {
             {/* interaction overlay */}
             <div
               className="absolute inset-0 touch-none"
-              style={{ cursor: tool === "select" ? "default" : "crosshair" }}
+              style={{
+                cursor:
+                  tool === "select"
+                    ? "default"
+                    : tool === "editText"
+                      ? "text"
+                      : "crosshair",
+              }}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
@@ -1135,6 +1628,35 @@ export function PdfEditor() {
                       borderRadius: 2,
                     }}
                   >
+                    {selectedId === el.id && (
+                      <button
+                        type="button"
+                        aria-label={t("edDeleteEl")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          pushUndo();
+                          updateEls((els) => els.filter((x) => x.id !== el.id));
+                          setSelectedId(null);
+                        }}
+                        className="absolute -right-2.5 -top-2.5 grid h-5 w-5 place-items-center rounded-full bg-rose-600 text-white shadow-md"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ) : el.type === "redact" ? (
+                  <div
+                    key={el.id}
+                    data-el-id={el.id}
+                    className={`absolute bg-black ${selectedId === el.id ? "outline-2 outline-dashed outline-rose-500" : "outline-1 outline-dashed outline-transparent hover:outline-rose-300/70"}`}
+                    style={{
+                      left: el.x * fitScale,
+                      top: el.y * fitScale,
+                      width: el.w * fitScale,
+                      height: el.h * fitScale,
+                    }}
+                  >
+                    <span className="pointer-events-none absolute inset-1 rounded-[3px] border border-dashed border-white/40" />
                     {selectedId === el.id && (
                       <button
                         type="button"
@@ -1232,6 +1754,167 @@ export function PdfEditor() {
                 )}
               </svg>
 
+              {/* shapes layer */}
+              <svg
+                className="absolute inset-0 overflow-visible"
+                width={canvasW}
+                height={canvasH}
+                viewBox={`0 0 ${disp.w} ${disp.h}`}
+              >
+                {pageEls.map((el) => {
+                  if (el.type !== "shape") return null;
+                  const common = {
+                    fill: "none" as const,
+                    stroke: el.color,
+                    strokeWidth: el.width,
+                    strokeLinecap: "round" as const,
+                    strokeLinejoin: "round" as const,
+                  };
+                  const hitW = Math.max(el.width + 10, 14);
+                  const x = Math.min(el.x0, el.x1);
+                  const y = Math.min(el.y0, el.y1);
+                  const w = Math.abs(el.x1 - el.x0);
+                  const h = Math.abs(el.y1 - el.y0);
+                  const ang = Math.atan2(el.y1 - el.y0, el.x1 - el.x0);
+                  const hs = Math.max(8, el.width * 3.2);
+                  return (
+                    <g key={el.id} className="cursor-move">
+                      {/* fat invisible hit area */}
+                      {el.shape === "rect" && (
+                        <rect
+                          data-el-id={el.id}
+                          x={x}
+                          y={y}
+                          width={w}
+                          height={h}
+                          fill="none"
+                          stroke="transparent"
+                          strokeWidth={hitW}
+                        />
+                      )}
+                      {el.shape === "ellipse" && (
+                        <ellipse
+                          data-el-id={el.id}
+                          cx={x + w / 2}
+                          cy={y + h / 2}
+                          rx={w / 2}
+                          ry={h / 2}
+                          fill="none"
+                          stroke="transparent"
+                          strokeWidth={hitW}
+                        />
+                      )}
+                      {(el.shape === "line" || el.shape === "arrow") && (
+                        <line
+                          data-el-id={el.id}
+                          x1={el.x0}
+                          y1={el.y0}
+                          x2={el.x1}
+                          y2={el.y1}
+                          stroke="transparent"
+                          strokeWidth={hitW}
+                          strokeLinecap="round"
+                        />
+                      )}
+                      {/* visible shape */}
+                      {el.shape === "rect" && (
+                        <rect {...common} x={x} y={y} width={w} height={h} />
+                      )}
+                      {el.shape === "ellipse" && (
+                        <ellipse {...common} cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} />
+                      )}
+                      {el.shape === "line" && (
+                        <line {...common} x1={el.x0} y1={el.y0} x2={el.x1} y2={el.y1} />
+                      )}
+                      {el.shape === "arrow" && (
+                        <>
+                          <line {...common} x1={el.x0} y1={el.y0} x2={el.x1} y2={el.y1} />
+                          {[Math.PI * 0.82, -Math.PI * 0.82].map((off) => (
+                            <line
+                              key={off}
+                              {...common}
+                              x1={el.x1}
+                              y1={el.y1}
+                              x2={el.x1 + Math.cos(ang + off) * hs}
+                              y2={el.y1 + Math.sin(ang + off) * hs}
+                            />
+                          ))}
+                        </>
+                      )}
+                      {selectedId === el.id && (
+                        <rect
+                          x={x - 3}
+                          y={y - 3}
+                          width={w + 6}
+                          height={h + 6}
+                          fill="none"
+                          stroke="rgba(244,63,94,0.9)"
+                          strokeWidth={1}
+                          strokeDasharray="5 4"
+                        />
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {/* selected shape delete button */}
+              {pageEls.map((el) =>
+                el.type === "shape" && selectedId === el.id ? (
+                  <button
+                    key={el.id}
+                    type="button"
+                    aria-label={t("edDeleteEl")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      pushUndo();
+                      updateEls((els) => els.filter((x) => x.id !== el.id));
+                      setSelectedId(null);
+                    }}
+                    className="absolute -top-3 grid h-5 w-5 place-items-center rounded-full bg-rose-600 text-white shadow-md"
+                    style={{
+                      left:
+                        Math.min(el.x0, el.x1) * fitScale +
+                        (Math.abs(el.x1 - el.x0) * fitScale) / 2 -
+                        10,
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                ) : null
+              )}
+
+              {/* the PDF's own text — click to edit natively */}
+              {tool === "editText" &&
+                boxes.map((nb) => {
+                  const used = editedNativeIds.has(nb.idx);
+                  return (
+                    <div
+                      key={nb.idx}
+                      role="button"
+                      tabIndex={-1}
+                      aria-label={nb.str}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        createNativeText(nb);
+                      }}
+                      title={nb.str}
+                      className={`absolute cursor-text rounded-[2px] border border-dashed transition ${
+                        used
+                          ? "border-emerald-500/25 bg-emerald-500/[0.03]"
+                          : "border-emerald-500/45 bg-emerald-500/[0.06] hover:border-emerald-600 hover:bg-emerald-500/15"
+                      }`}
+                      style={{
+                        left: nb.x * fitScale,
+                        top: nb.y * fitScale,
+                        width: nb.w * fitScale,
+                        height: nb.h * fitScale,
+                      }}
+                    />
+                  );
+                })}
+
               {/* rect draft */}
               {draftRect && (
                 <div
@@ -1241,8 +1924,19 @@ export function PdfEditor() {
                     top: draftRect.y * fitScale,
                     width: draftRect.w * fitScale,
                     height: draftRect.h * fitScale,
-                    backgroundColor: tool === "highlight" ? `${color}59` : undefined,
-                    border: `1.5px dashed ${tool === "highlight" ? color : "rgba(244,63,94,0.7)"}`,
+                    backgroundColor:
+                      tool === "highlight"
+                        ? `${color}59`
+                        : tool === "redact"
+                          ? "rgba(0,0,0,0.75)"
+                          : undefined,
+                    border: `1.5px dashed ${
+                      tool === "highlight" || tool === "shape"
+                        ? color
+                        : tool === "redact"
+                          ? "rgba(16,185,129,0.9)"
+                          : "rgba(244,63,94,0.7)"
+                    }`,
                   }}
                 />
               )}
@@ -1333,10 +2027,8 @@ export function PdfEditor() {
                           e.currentTarget.scrollWidth / fitScale + 4
                         );
                         if (!text.trim()) {
-                          setElements((m) => ({
-                            ...m,
-                            [pageNum]: (m[pageNum] ?? []).filter((x) => x.id !== el.id),
-                          }));
+                          // emptied a native box = delete the ORIGINAL text entirely
+                          deleteElement(pageNum, el.id);
                           setSelectedId((cur) => (cur === el.id ? null : cur));
                         } else {
                           updateEls((els) =>
@@ -1375,6 +2067,23 @@ export function PdfEditor() {
           )}
         </div>
       </div>
+
+      {/* ── signature pad dialog ───────────────────────────────────── */}
+      <Dialog open={sigOpen} onOpenChange={setSigOpen}>
+        <DialogContent className="fm-card max-w-md rounded-3xl border-emerald-900/10">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-emerald-950">
+              {t("edSigTitle")}
+            </DialogTitle>
+          </DialogHeader>
+          <SignaturePad
+            onInsert={(url) => {
+              setSigOpen(false);
+              addImageEl(url);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
