@@ -1,0 +1,48 @@
+# ⚙️ ঐচ্ছিক (Optional): GitHub Actions দিয়ে অটো-ডিপ্লয়
+#
+# উপরের "Deploy with Vercel" বাটন দিয়ে একবার ডিপ্লয় করলে Vercel নিজেই
+# GitHub-এর সাথে কানেক্ট হয়ে যায় — তখন এই ফাইলের দরকার নেই।
+#
+# শুধু যদি CI/CD নিজে চালাতে চান, তাহলে GitHub repo → Settings →
+# Secrets and variables → Actions-এ এই ৩টি Secret যোগ করুন:
+#   1. VERCEL_TOKEN        → vercel.com → Account Settings → Tokens
+#   2. VERCEL_ORG_ID       → Vercel project → Settings → General
+#   3. VERCEL_PROJECT_ID   → Vercel project → Settings → General
+#
+# Secrets যোগ না করা পর্যন্ত এই workflow নিজে থেকে চলবে না (নিরাপদ)।
+
+name: Deploy to Vercel
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Pull Vercel environment
+        run: bunx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build
+        run: bunx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel
+        run: bunx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
