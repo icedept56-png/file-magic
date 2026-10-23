@@ -65,6 +65,10 @@ type EditorEl =
       nativeId?: number;
       /** original text bbox (display pt) — drives true stream removal on export */
       nativeBox?: { x: number; y: number; w: number; h: number };
+      /** per-item rects of the original line — precise stream removal */
+      nativeParts?: { x: number; y: number; w: number; h: number }[];
+      /** sampled page colour behind the original line (editing underlay) */
+      bg?: string;
     }
   | { id: string; type: "image"; x: number; y: number; w: number; h: number; dataUrl: string }
   | { id: string; type: "draw"; color: string; width: number; points: Pt[] }
@@ -92,7 +96,10 @@ type Snapshot = {
 type ToolId = "select" | "editText" | "whiteout" | "redact" | "highlight" | "text" | "shape" | "draw";
 
 type NativeBox = {
+  /** first content item index — stable across rotations, unique per line */
   idx: number;
+  /** every member item index (words, spaces, kerned runs) */
+  idxs: number[];
   x: number;
   y: number;
   w: number;
@@ -100,9 +107,13 @@ type NativeBox = {
   str: string;
   size: number;
   baselineY: number;
+  /** tight per-item rects — one content-stream operator each */
+  parts: { x: number; y: number; w: number; h: number }[];
 };
 
 const MAX_PAGES = 300;
+/** files above this size skip the pdf-lib preview rebuild (pixel covers instead) */
+const PREVIEW_SIZE_LIMIT = 12_000_000;
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 /* ── rotation-aware coordinate mapping (display → unrotated pdf space) ─── */
@@ -135,10 +146,19 @@ function rotateElsCW(els: EditorEl[], Hd: number): EditorEl[] {
     }
     if (el.type === "text") {
       // rotate the anchor box; the text re-renders horizontal in the new orientation
-      const nb = el.nativeBox
-        ? { x: Hd - el.nativeBox.y - el.nativeBox.h, y: el.nativeBox.x, w: el.nativeBox.h, h: el.nativeBox.w }
-        : undefined;
-      return { ...el, x: Hd - el.y - el.size, y: el.x, nativeBox: nb };
+      const rot = (p: { x: number; y: number; w: number; h: number }) => ({
+        x: Hd - p.y - p.h,
+        y: p.x,
+        w: p.h,
+        h: p.w,
+      });
+      return {
+        ...el,
+        x: Hd - el.y - el.size,
+        y: el.x,
+        nativeBox: el.nativeBox ? rot(el.nativeBox) : undefined,
+        nativeParts: el.nativeParts?.length ? el.nativeParts.map(rot) : undefined,
+      };
     }
     if (el.type === "shape") {
       const p0 = { x: Hd - el.y0, y: el.x0 };
@@ -190,6 +210,13 @@ export function PdfEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
+  /* live WYSIWYG preview — a pdfjs doc whose edited text ops are already gone */
+  const previewDocRef = useRef<PdfJsDoc | null>(null);
+  const [previewTick, setPreviewTick] = useState(0);
+  const [coverTick, setCoverTick] = useState(0);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const previewJobRef = useRef<Promise<void>>(Promise.resolve());
+  const previewPendingRef = useRef(false);
   const [disp, setDisp] = useState({ w: 595, h: 842 }); // display-space pt of current page
   const [fitScale, setFitScale] = useState(1); // css px per pt
 
@@ -201,8 +228,8 @@ export function PdfEditor() {
   const [pageOrder, setPageOrder] = useState<number[]>([]);
   const undoStack = useRef<Snapshot[]>([]);
 
-  /* pdf's own text items (display-space boxes) for direct editing */
-  const [nativeBoxes, setNativeBoxes] = useState<Record<number, NativeBox[]>>({});
+  /* pdf's own text LINES (clustered, display-space) for direct editing */
+  const [nativeBoxes, setNativeBoxes] = useState<Record<string, NativeBox[]>>({});
   const [scanningText, setScanningText] = useState(false);
 
   /* ui */
@@ -235,6 +262,14 @@ export function PdfEditor() {
   elsRef.current = elements;
   const pageNumRef = useRef(pageNum);
   pageNumRef.current = pageNum;
+  const removedNativeRef = useRef(removedNative);
+  removedNativeRef.current = removedNative;
+  const rotationRef = useRef(rotation);
+  rotationRef.current = rotation;
+  const nativeBoxesRef = useRef(nativeBoxes);
+  nativeBoxesRef.current = nativeBoxes;
+  const pageSizeRef = useRef<Record<number, { w: number; h: number }>>({});
+  const autoEditRef = useRef(true);
 
   const hasEdits =
     Object.values(elements).some((a) => a.length > 0) || deleted.length > 0 ||
@@ -244,6 +279,142 @@ export function PdfEditor() {
 
   const pageEls = elements[pageNum] ?? [];
   const totalRot = ((rotation[pageNum] ?? 0) + 360) % 360;
+
+  /* ── WYSIWYG preview: pages re-rendered with removed text truly gone ── */
+
+  /** collect user-space rects whose text-show operators must disappear */
+  const computeNativeRects = useCallback(
+    (
+      pageIdx: number,
+      rot: number,
+      Wu: number,
+      Hu: number,
+      includeRedact: boolean
+    ): UserRect[] => {
+      const rects: UserRect[] = [];
+      const sizes = pageSizeRef.current[pageIdx];
+      if (!sizes) return rects;
+      const dims = (r: number) =>
+        (((r % 360) + 360) % 360) % 180 === 90
+          ? { w: sizes.h, h: sizes.w }
+          : { w: sizes.w, h: sizes.h };
+      const push = (x: number, y: number, w: number, h: number, r: number) => {
+        const d = dims(r);
+        const m = mapRect(x, y, w, h, r, d.w, d.h);
+        rects.push({
+          x0: m.x - 0.6,
+          y0: Hu - m.y - m.h - 0.6,
+          x1: m.x + m.w + 0.6,
+          y1: Hu - m.y + 0.6,
+        });
+      };
+
+      for (const el of elsRef.current[pageIdx] ?? []) {
+        if (el.type === "text" && el.nativeBox) {
+          for (const p of el.nativeParts?.length ? el.nativeParts : [el.nativeBox]) {
+            push(p.x, p.y, p.w, p.h, rot);
+          }
+        } else if (el.type === "redact" && includeRedact) {
+          const d = dims(rot);
+          const m = mapRect(el.x - 0.5, el.y - 0.5, el.w + 1, el.h + 1, rot, d.w, d.h);
+          rects.push({
+            x0: m.x - 0.5,
+            y0: Hu - m.y - m.h - 0.5,
+            x1: m.x + m.w + 0.5,
+            y1: Hu - m.y + 0.5,
+            heuristic: true,
+          });
+        }
+      }
+
+      const gone = removedNativeRef.current[pageIdx] ?? [];
+      if (gone.length) {
+        let scan = nativeBoxesRef.current[`${pageIdx}:${rot}`];
+        let scanRot: number | null = scan ? rot : null;
+        if (!scan) {
+          for (const [k, v] of Object.entries(nativeBoxesRef.current)) {
+            if (v.length && k.startsWith(`${pageIdx}:`)) {
+              scan = v;
+              scanRot = Number(k.split(":")[1]);
+              break;
+            }
+          }
+        }
+        if (scan) {
+          for (const idx of gone) {
+            const nb = scan.find((b) => b.idx === idx);
+            if (!nb) continue;
+            for (const p of nb.parts) push(p.x, p.y, p.w, p.h, scanRot ?? rot);
+          }
+        }
+      }
+      return rects;
+    },
+    []
+  );
+
+  /** rebuild the on-screen document with ALL edited pages surgerized */
+  const runPreview = useCallback(async () => {
+    const bytes = bytesRef.current;
+    if (!bytes) return;
+    const dirty = new Set<number>();
+    for (const [k, v] of Object.entries(removedNativeRef.current)) {
+      if (v.length) dirty.add(Number(k));
+    }
+    for (const [k, arr] of Object.entries(elsRef.current)) {
+      if (arr.some((e) => e.type === "text" && e.nativeBox)) dirty.add(Number(k));
+    }
+    if (dirty.size === 0) {
+      if (previewDocRef.current) {
+        previewDocRef.current.destroy().catch(() => {});
+        previewDocRef.current = null;
+        setPreviewTick((t) => t + 1);
+      }
+      return;
+    }
+    if (bytes.length > PREVIEW_SIZE_LIMIT) {
+      setCoverTick((t) => t + 1); // too big to re-surgery — paint covers instead
+      return;
+    }
+    try {
+      const { PDFDocument } = await import("pdf-lib");
+      const pdf = await PDFDocument.load(bytes.slice(), { ignoreEncryption: true });
+      for (const p of dirty) {
+        const page = pdf.getPages()[p];
+        if (!page) continue;
+        const { width: Wu, height: Hu } = page.getSize();
+        const rot = ((rotationRef.current[p] ?? 0) + 360) % 360;
+        const rects = computeNativeRects(p, rot, Wu, Hu, false);
+        if (rects.length) await removeTextInRects(pdf, p, rects);
+      }
+      const out = await pdf.save();
+      const pdfjs = await import("pdfjs-dist");
+      const doc = await pdfjs.getDocument({ data: out.slice() }).promise;
+      previewDocRef.current?.destroy().catch(() => {});
+      previewDocRef.current = doc;
+      setPreviewTick((t) => t + 1);
+    } catch {
+      setCoverTick((t) => t + 1); // never block editing on preview failures
+    }
+  }, [computeNativeRects]);
+
+  /** coalesce rapid commits into one preview rebuild */
+  const schedulePreview = useCallback(() => {
+    if (!bytesRef.current) return;
+    previewPendingRef.current = true;
+    setPreviewBusy(true);
+    previewJobRef.current = previewJobRef.current
+      .then(async () => {
+        if (!previewPendingRef.current) return;
+        previewPendingRef.current = false;
+        await new Promise((r) => setTimeout(r, 90));
+        await runPreview();
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!previewPendingRef.current) setPreviewBusy(false);
+      });
+  }, [runPreview]);
 
   /* ── undo ─────────────────────────────────────────────────────────── */
   const pushUndo = useCallback(() => {
@@ -268,7 +439,8 @@ export function PdfEditor() {
     setRemovedNative(snap.removedNative);
     setPageOrder(snap.pageOrder);
     setSelectedId(null);
-  }, []);
+    schedulePreview(); // re-sync the WYSIWYG preview with the restored state
+  }, [schedulePreview]);
 
   /* ── load document ────────────────────────────────────────────────── */
   const openBytes = useCallback(
@@ -298,16 +470,24 @@ export function PdfEditor() {
         setRemovedNative({});
         setPageOrder(Array.from({ length: doc.numPages }, (_, k) => k));
         setNativeBoxes({});
+        autoEditRef.current = true;
+        previewDocRef.current?.destroy().catch(() => {});
+        previewDocRef.current = null;
+        previewPendingRef.current = false;
+        setPreviewBusy(false);
+        setPreviewTick(0);
+        setCoverTick(0);
         setThumbs([]);
         setZoom(1);
         setSelectedId(null);
         undoStack.current = [];
 
-        // thumbnails (sequential, cheap scale)
+        // thumbnails (sequential, cheap scale) + unrotated page-size cache
         const tNails: string[] = [];
         for (let i = 1; i <= doc.numPages; i++) {
           const page = await doc.getPage(i);
           const vp1 = page.getViewport({ scale: 1, rotation: 0 });
+          pageSizeRef.current[i - 1] = { w: vp1.width, h: vp1.height };
           const vp = page.getViewport({ scale: 96 / vp1.width, rotation: 0 });
           const c = document.createElement("canvas");
           c.width = Math.ceil(vp.width);
@@ -315,6 +495,13 @@ export function PdfEditor() {
           await page.render({ canvasContext: c.getContext("2d")!, viewport: vp }).promise;
           tNails.push(c.toDataURL("image/jpeg", 0.75));
           if (i === 40) break; // enough for the rail; pages beyond stay numbered
+        }
+        // unrotated sizes for pages whose thumbnail was skipped
+        for (let i = 41; i <= doc.numPages; i++) {
+          if (pageSizeRef.current[i - 1]) continue;
+          const pg = await doc.getPage(i);
+          const v1 = pg.getViewport({ scale: 1, rotation: 0 });
+          pageSizeRef.current[i - 1] = { w: v1.width, h: v1.height };
         }
         setThumbs(tNails);
       } catch {
@@ -346,7 +533,8 @@ export function PdfEditor() {
     let cancelled = false;
 
     (async () => {
-      const page: PdfJsPage = await pdfDoc.getPage(pageNum + 1);
+      const srcDoc = previewDocRef.current ?? pdfDoc;
+      const page: PdfJsPage = await srcDoc.getPage(pageNum + 1);
       const vp1 = page.getViewport({ scale: 1, rotation: totalRot });
       const stage = stageRef.current;
       const avail = stage ? stage.clientWidth - 32 : 700;
@@ -370,14 +558,49 @@ export function PdfEditor() {
       try {
         await task.promise;
       } catch {
-        /* cancelled render — ignore */
+        return; /* cancelled render — ignore */
+      }
+      if (cancelled) return;
+
+      /* big-file fallback: no surgery re-render — paint bg-coloured
+         covers over removed lines so the WYSIWYG illusion still holds */
+      const bytes = bytesRef.current;
+      if (previewDocRef.current === null && bytes && bytes.length > PREVIEW_SIZE_LIMIT) {
+        const S = scale * dpr;
+        const cover = (x: number, y: number, w: number, h: number) => {
+          let fill = "#ffffff";
+          try {
+            const sx = Math.round((x - 4) * S);
+            const sy = Math.round((y + h / 2) * S);
+            if (sx >= 0 && sy >= 0 && sx < canvas.width && sy < canvas.height) {
+              const d = ctx.getImageData(sx, sy, 1, 1).data;
+              if (d[3] > 10) fill = `rgb(${d[0]},${d[1]},${d[2]})`;
+            }
+          } catch {
+            /* keep white */
+          }
+          ctx.fillStyle = fill;
+          ctx.fillRect(x * S - 1, y * S - 1, w * S + 2, h * S + 2);
+        };
+        for (const el of elsRef.current[pageNum] ?? []) {
+          if (el.type === "text" && el.nativeBox) {
+            for (const p of el.nativeParts?.length ? el.nativeParts : [el.nativeBox]) {
+              cover(p.x, p.y, p.w, p.h);
+            }
+          }
+        }
+        const scan = nativeBoxesRef.current[`${pageNum}:${totalRot}`];
+        for (const idx of removedNativeRef.current[pageNum] ?? []) {
+          const nb = scan?.find((b) => b.idx === idx);
+          if (nb) for (const p of nb.parts) cover(p.x, p.y, p.w, p.h);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [pdfDoc, pageNum, zoom, totalRot]);
+  }, [pdfDoc, pageNum, zoom, totalRot, previewTick, coverTick]);
 
   /* focus newly created text */
   useEffect(() => {
@@ -399,10 +622,11 @@ export function PdfEditor() {
     }
   }, [selectedId, elements]);
 
-  /* ── detect the PDF's own text (for direct native editing) ─────────── */
+  /* ── detect the PDF's own text (clustered into editable LINES) ────── */
   useEffect(() => {
     if (!pdfDoc) return;
-    if (nativeBoxes[pageNum]) return; // cached for this page + rotation
+    const key = `${pageNum}:${totalRot}`;
+    if (nativeBoxes[key]) return; // cached for this page + rotation
     let cancelled = false;
     setScanningText(true);
     (async () => {
@@ -411,12 +635,22 @@ export function PdfEditor() {
         const vp1 = page.getViewport({ scale: 1, rotation: totalRot });
         const content = await page.getTextContent();
         if (cancelled) return;
-        const boxes: NativeBox[] = [];
+        const vt = vp1.transform;
+
+        type Frag = {
+          idx: number;
+          x0: number;
+          x1: number;
+          by: number;
+          fontH: number;
+          str: string;
+          horiz: boolean;
+        };
+        const frags: Frag[] = [];
         content.items.forEach((it, idx) => {
-          if (!("str" in it) || !it.str || !it.str.trim()) return;
+          if (!("str" in it) || !it.str) return; // keep whitespace runs — they are real operators
           const item = it as { str: string; width: number; height: number; transform: number[] };
           // viewport.transform × item.transform → display space (pt, y-down)
-          const vt = vp1.transform;
           const tr = item.transform;
           const tx = [
             vt[0] * tr[0] + vt[2] * tr[1],
@@ -432,21 +666,96 @@ export function PdfEditor() {
           const bx0 = tx[4];
           const by0 = tx[5];
           const bx1 = bx0 + (tx[0] / dir) * w;
-          const by1 = by0 + (tx[1] / dir) * w;
-          boxes.push({
+          frags.push({
             idx,
-            x: Math.min(bx0, bx1) - 0.5,
-            y: Math.min(by0, by1) - 0.88 * fontH,
-            w: Math.abs(bx1 - bx0) + 1,
-            h: 1.16 * fontH + Math.abs(by1 - by0),
+            x0: Math.min(bx0, bx1),
+            x1: Math.max(bx0, bx1),
+            by: by0,
+            fontH,
             str: item.str,
-            size: fontH,
-            baselineY: by0,
+            horiz: Math.abs(tx[0]) >= Math.abs(tx[1]),
           });
         });
-        setNativeBoxes((m) => ({ ...m, [pageNum]: boxes }));
+
+        /* group fragments whose baselines coincide → whole visual lines.
+           Real-world PDFs (Word, LaTeX…) emit one fragment PER WORD —
+           editing must operate on the full line, not tiny shards. */
+        const groups: Frag[][] = [];
+        for (const f of frags) {
+          if (!f.horiz) {
+            groups.push([f]);
+            continue;
+          }
+          const tol = Math.max(1.5, 0.42 * f.fontH);
+          const g = groups.find(
+            (G) =>
+              G[0].horiz &&
+              Math.abs(G.reduce((s, m) => s + m.by, 0) / G.length - f.by) <= tol
+          );
+          if (g) g.push(f);
+          else groups.push([f]);
+        }
+
+        const boxes: NativeBox[] = [];
+        for (const G of groups) {
+          const ms = G.slice().sort((a, b) => a.x0 - b.x0);
+          const fontH = Math.max(...ms.map((m) => m.fontH));
+          /* split at wide gaps so table columns / page numbers stay separate */
+          let seg: Frag[] = [];
+          const flush = () => {
+            if (!seg.length) return;
+            let str = "";
+            let cursor: number | null = null;
+            for (const m of seg) {
+              const gap = cursor == null ? 0 : m.x0 - cursor;
+              if (cursor != null && gap > 0.22 * fontH && !/\s$/.test(str) && !/^\s/.test(m.str)) {
+                str += " ";
+              }
+              str += m.str;
+              cursor = m.x1;
+            }
+            if (!str.trim()) {
+              seg = [];
+              return;
+            }
+            const x0 = Math.min(...seg.map((m) => m.x0));
+            const x1 = Math.max(...seg.map((m) => m.x1));
+            const by = seg[0].by;
+            boxes.push({
+              idx: seg[0].idx,
+              idxs: seg.map((m) => m.idx),
+              x: x0 - 0.5,
+              y: by - 0.88 * fontH - 0.5,
+              w: x1 - x0 + 1,
+              h: 1.16 * fontH + 1,
+              str,
+              size: fontH,
+              baselineY: by,
+              parts: seg.map((m) => ({
+                x: m.x0 - 0.5,
+                y: m.by - 0.88 * m.fontH,
+                w: m.x1 - m.x0 + 1,
+                h: 1.16 * m.fontH,
+              })),
+            });
+            seg = [];
+          };
+          for (const m of ms) {
+            if (seg.length && m.x0 - seg[seg.length - 1].x1 > 3.5 * fontH) flush();
+            seg.push(m);
+          }
+          flush();
+        }
+        boxes.sort((a, b) => a.y - b.y || a.x - b.x);
+        setNativeBoxes((m) => ({ ...m, [key]: boxes }));
+
+        /* first open of a text-bearing PDF → jump straight into text editing */
+        if (boxes.length > 0 && autoEditRef.current) {
+          autoEditRef.current = false;
+          setTool((t) => (t === "select" ? "editText" : t));
+        }
       } catch {
-        if (!cancelled) setNativeBoxes((m) => ({ ...m, [pageNum]: [] }));
+        if (!cancelled) setNativeBoxes((m) => ({ ...m, [key]: [] }));
       } finally {
         if (!cancelled) setScanningText(false);
       }
@@ -509,18 +818,51 @@ export function PdfEditor() {
 
   const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
 
-  /* ── element deletion (registers true text removal for native boxes) ── */
-  const deleteElement = useCallback((pageIdx: number, id: string) => {
-    const el = (elsRef.current[pageIdx] ?? []).find((x) => x.id === id);
-    if (el && el.type === "text" && typeof el.nativeId === "number") {
-      const nid = el.nativeId;
-      setRemovedNative((m) => ({ ...m, [pageIdx]: [...(m[pageIdx] ?? []), nid] }));
+  /* ── element deletion (registers true text removal for native lines) ── */
+  const deleteElement = useCallback(
+    (pageIdx: number, id: string) => {
+      const el = (elsRef.current[pageIdx] ?? []).find((x) => x.id === id);
+      if (el && el.type === "text" && typeof el.nativeId === "number") {
+        const nid = el.nativeId;
+        setRemovedNative((m) => ({ ...m, [pageIdx]: [...(m[pageIdx] ?? []), nid] }));
+        schedulePreview(); // wipe the line from the on-screen page too
+      }
+      setElements((m) => ({
+        ...m,
+        [pageIdx]: (m[pageIdx] ?? []).filter((x) => x.id !== id),
+      }));
+    },
+    [schedulePreview]
+  );
+
+  /* sample the page colour beside a text line — the opaque underlay that
+     hides the original glyphs while the user is typing */
+  const samplePageBg = (x: number, y: number, w: number, h: number): string => {
+    try {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext("2d");
+      if (!canvas || !ctx) return "#ffffff";
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const px = (v: number) => Math.round(v * fitScale * dpr);
+      const cands: Array<[number, number]> = [
+        [x - 4, y + h * 0.5],
+        [x + w + 4, y + h * 0.5],
+        [x + w * 0.5, y - 3],
+        [x + w * 0.5, y + h + 3],
+      ];
+      for (const [cx, cy] of cands) {
+        const sx = px(cx);
+        const sy = px(cy);
+        if (sx < 0 || sy < 0 || sx >= canvas.width || sy >= canvas.height) continue;
+        const d = ctx.getImageData(sx, sy, 1, 1).data;
+        if (d[3] < 10) continue;
+        return `rgb(${d[0]},${d[1]},${d[2]})`;
+      }
+    } catch {
+      /* canvas unreadable — plain white fallback */
     }
-    setElements((m) => ({
-      ...m,
-      [pageIdx]: (m[pageIdx] ?? []).filter((x) => x.id !== id),
-    }));
-  }, []);
+    return "#ffffff";
+  };
 
   /* ── convert the PDF's own text into an editable element ─────────── */
   const createNativeText = (nb: NativeBox) => {
@@ -550,6 +892,8 @@ export function PdfEditor() {
         bold: false,
         nativeId: nb.idx,
         nativeBox: { x: nb.x, y: nb.y, w: nb.w, h: nb.h },
+        nativeParts: nb.parts,
+        bg: samplePageBg(nb.x, nb.y, nb.w, nb.h),
       },
     ]);
     setSelectedId(id);
@@ -914,41 +1258,7 @@ export function PdfEditor() {
         };
 
         /* ── 1) TRUE TEXT SURGERY — remove the original operators ──── */
-        const rects: UserRect[] = [];
-        for (const el of els) {
-          if (el.type === "text" && el.nativeBox) {
-            // the ORIGINAL text bbox (display pt) → user space
-            const nb = el.nativeBox;
-            const m = mapRect(nb.x, nb.y, nb.w, nb.h, rot, Wd, Hd);
-            rects.push({
-              x0: m.x - 1,
-              y0: Hu - m.y - m.h - 1,
-              x1: m.x + m.w + 1,
-              y1: Hu - m.y + 1,
-            });
-          } else if (el.type === "redact") {
-            const m = mapRect(el.x, el.y, el.w, el.h, rot, Wd, Hd);
-            rects.push({
-              x0: m.x - 0.5,
-              y0: Hu - m.y - m.h - 0.5,
-              x1: m.x + m.w + 0.5,
-              y1: Hu - m.y + 0.5,
-              heuristic: true,
-            });
-          }
-        }
-        for (const idx of removedNative[i] ?? []) {
-          // whole text item deleted without replacement
-          const nb = nativeBoxes[i]?.find((b) => b.idx === idx);
-          if (!nb) continue;
-          const m = mapRect(nb.x, nb.y, nb.w, nb.h, rot, Wd, Hd);
-          rects.push({
-            x0: m.x - 1,
-            y0: Hu - m.y - m.h - 1,
-            x1: m.x + m.w + 1,
-            y1: Hu - m.y + 1,
-          });
-        }
+        const rects: UserRect[] = computeNativeRects(i, rot, Wu, Hu, true);
         if (rects.length > 0) {
           await removeTextInRects(pdf, i, rects);
         }
@@ -1099,10 +1409,11 @@ export function PdfEditor() {
   const canvasH = disp.h * fitScale;
   const selected = pageEls.find((el) => el.id === selectedId) ?? null;
   const selectedText = selected && selected.type === "text" ? selected : null;
-  const boxes = nativeBoxes[pageNum] ?? [];
+  const boxes = nativeBoxes[`${pageNum}:${totalRot}`] ?? [];
   const editedNativeIds = new Set(
     pageEls.filter((x) => x.type === "text" && typeof x.nativeId === "number").map((x) => (x as { nativeId: number }).nativeId)
   );
+  const removedNativeIds = new Set(removedNative[pageNum] ?? []);
 
   const TOOL_BTN: { id: ToolId; icon: typeof Type; label: string }[] = [
     { id: "select", icon: MousePointer2, label: t("edToolSelect") },
@@ -1550,8 +1861,8 @@ export function PdfEditor() {
                   : boxes.length === 0
                     ? t("edNoNativeText")
                     : lang === "en"
-                      ? `${boxes.length} text block${boxes.length > 1 ? "s" : ""} — click one to edit or delete it directly`
-                      : `${num(boxes.length)} টি টেক্সট ব্লক — ক্লিক করে সরাসরি এডিট বা মুছে ফেলুন`}
+                      ? `${boxes.length} text line${boxes.length > 1 ? "s" : ""} — click one to edit in place · clear it to delete`
+                      : `${num(boxes.length)} টি টেক্সট লাইন — ক্লিক করে সরাসরি এডিট · লেখা সব মুছে দিলে লাইনটি ডিলিট হবে`}
               </span>
             </div>
           )}
@@ -1563,7 +1874,7 @@ export function PdfEditor() {
 
             {/* interaction overlay */}
             <div
-              className="absolute inset-0 touch-none"
+              className="absolute inset-0 touch-none select-none [&_[contenteditable='true']]:select-text"
               style={{
                 cursor:
                   tool === "select"
@@ -1576,6 +1887,25 @@ export function PdfEditor() {
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
+              onDoubleClick={(e) => {
+                // double-click any text — even with the select tool — to edit it in place
+                const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                const px = (e.clientX - r.left) / fitScale;
+                const py = (e.clientY - r.top) / fitScale;
+                const hit = boxes.find(
+                  (nb) =>
+                    !removedNativeIds.has(nb.idx) &&
+                    px >= nb.x - 2 &&
+                    px <= nb.x + nb.w + 2 &&
+                    py >= nb.y - 2 &&
+                    py <= nb.y + nb.h + 2
+                );
+                if (hit) {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  createNativeText(hit);
+                }
+              }}
               // the browser would blur our freshly-focused text box otherwise
               onMouseDown={(me) => {
                 if (tool === "text") me.preventDefault();
@@ -1886,34 +2216,36 @@ export function PdfEditor() {
 
               {/* the PDF's own text — click to edit natively */}
               {tool === "editText" &&
-                boxes.map((nb) => {
-                  const used = editedNativeIds.has(nb.idx);
-                  return (
-                    <div
-                      key={nb.idx}
-                      role="button"
-                      tabIndex={-1}
-                      aria-label={nb.str}
-                      onPointerDown={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        createNativeText(nb);
-                      }}
-                      title={nb.str}
-                      className={`absolute cursor-text rounded-[2px] border border-dashed transition ${
-                        used
-                          ? "border-emerald-500/25 bg-emerald-500/[0.03]"
-                          : "border-emerald-500/45 bg-emerald-500/[0.06] hover:border-emerald-600 hover:bg-emerald-500/15"
-                      }`}
-                      style={{
-                        left: nb.x * fitScale,
-                        top: nb.y * fitScale,
-                        width: nb.w * fitScale,
-                        height: nb.h * fitScale,
-                      }}
-                    />
-                  );
-                })}
+                boxes
+                  .filter((nb) => !removedNativeIds.has(nb.idx))
+                  .map((nb) => {
+                    const used = editedNativeIds.has(nb.idx);
+                    return (
+                      <div
+                        key={nb.idx}
+                        role="button"
+                        tabIndex={-1}
+                        aria-label={nb.str}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          createNativeText(nb);
+                        }}
+                        title={nb.str}
+                        className={`absolute cursor-text rounded-[2px] border border-dashed transition ${
+                          used
+                            ? "border-emerald-500/25 bg-emerald-500/[0.03]"
+                            : "border-emerald-500/45 bg-emerald-500/[0.06] hover:border-emerald-600 hover:bg-emerald-500/15"
+                        }`}
+                        style={{
+                          left: nb.x * fitScale,
+                          top: nb.y * fitScale,
+                          width: nb.w * fitScale,
+                          height: nb.h * fitScale,
+                        }}
+                      />
+                    );
+                  })}
 
               {/* rect draft */}
               {draftRect && (
@@ -1954,6 +2286,21 @@ export function PdfEditor() {
                       minWidth: 12,
                     }}
                   >
+                    {el.nativeBox && (selectedId === el.id || previewBusy) && (
+                      /* opaque underlay — hides the original glyphs while typing
+                         and until the WYSIWYG re-render lands (no double-vision) */
+                      <div
+                        aria-hidden="true"
+                        className="absolute rounded-[2px]"
+                        style={{
+                          left: (el.nativeBox.x - el.x) * fitScale - 2,
+                          top: (el.nativeBox.y - el.y) * fitScale - 1,
+                          width: el.nativeBox.w * fitScale + 4,
+                          height: el.nativeBox.h * fitScale + 2,
+                          background: el.bg || "#ffffff",
+                        }}
+                      />
+                    )}
                     {selectedId === el.id && (
                       <span className="absolute -left-1 -top-5 flex items-center gap-1">
                         <span
@@ -2036,6 +2383,8 @@ export function PdfEditor() {
                               x.id === el.id && x.type === "text" ? { ...x, text, w } : x
                             )
                           );
+                          // re-render the page with the original operators gone
+                          schedulePreview();
                         }
                       }}
                       className={`fm-ed-text whitespace-pre-wrap break-words outline-none ${
@@ -2058,6 +2407,12 @@ export function PdfEditor() {
           </div>
 
           {/* selected hint for image resize */}
+          {previewBusy && (
+            <div className="pointer-events-none fixed bottom-24 right-4 z-40 flex items-center gap-1.5 rounded-full border border-emerald-900/10 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-emerald-800 shadow-lg">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {lang === "en" ? "Updating preview…" : "প্রিভিউ আপডেট হচ্ছে…"}
+            </div>
+          )}
           {selected && selected.type === "image" && (
             <p className="mt-3 text-center text-[11px] font-medium text-emerald-900/50">
               {lang === "en"
