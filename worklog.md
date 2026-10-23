@@ -350,3 +350,25 @@ Stage Summary:
 - 2 real bugs found & fixed during E2E: CSV UTF-8 mojibake (sheet-editor), missing GFM table plugin (markdown-editor); 1 harness lesson: jsPDF uses MouseEvent-based save
 - Tool count now 35; 5 full-screen editors (PDF + image + sheet + markdown + audio); home shows "Editing Studio" grid
 - Key artifacts: image-editor.tsx (~1212 lines), sheet-editor.tsx (~650), markdown-editor.tsx (~622), audio-editor.tsx (~900), registry.ts (+4 tools/EDITOR_IDS), app-store/history-sync (generalized routing), editor-spotlight.tsx (studio), i18n.ts (+105 keys), package.json (+remark-gfm)
+
+---
+Task ID: 12
+Agent: main (Z.ai Code)
+Task: Post-restore full verification of the advanced-editing release (PDF true text surgery + all-type editors) — user: "add more advance tool for all type of file if i edit"
+
+Work Log:
+- Restored session: audited worklog (Tasks 10, 11-a..f complete) + git state; confirmed both flagship commits (531517f true PDF text editing, 7a68fe2 4 premium editors) are pushed and origin/main in sync (ls-remote = 7a68fe2)
+- Fixed working-tree noise: filesystem showed 10 files mode 100644→100755 with 0 content changes; set git config core.fileMode=false → status clean, nothing to commit/push
+- Quality gates re-run: eslint clean, tsc --noEmit clean for src/
+- Verified E2E fixes ARE in pushed commits: remark-gfm@^4.0.1 in HEAD package.json, TextDecoder utf-8 CSV fix in HEAD sheet-editor.tsx (line 170), remarkGfm plugin in HEAD markdown-editor.tsx (line 33/609)
+- agent-browser smoke (desktop 1280×900): home renders Bengali studio (PDF flagship banner + 4 editor cards, category counts consistent = 36 tools); /?tool=pdf-editor loads; upload .verify/sample.pdf (2 pages, 3+1 text lines) renders; টেক্সট এডিট tool detects ALL native text items as dashed overlays with hint chip
+- FLAGSHIP RE-PROOF (fresh E2E run): clicked "This line can be truly deleted" → inline contentEditable pre-filled → emptied + Escape (empty-on-blur → deleteElement → removedNative) → সেভ করুন → captured exported blob (1487B, %PDF-1.7) → pdfjs-dist ground-truth text extraction: page1 = ["Hello World from File Magic","Keep this line intact"], page2 = ["Page two survives surgery"], deleted line = ✅ TRULY ABSENT (no whiteout — text-show operator removed from content stream; surviving Tj hex strings verified intact)
+- Read code paths to confirm deletion contract: pdf-editor.tsx onBlur empty → deleteElement(pageNum, el.id) → nativeId pushed to removedNative → export runs text-surgery.ts stream rewrite; createNativeText intentionally setTool("select") after click (not a bug)
+- Harness artifacts: .verify/{make-pdf.ts, sample.pdf, check-export.ts, dump-streams.ts, rigorous-check.ts, pdfjs-extract.ts, exported.b64.txt, smoke-*.png}
+- Mobile 390×844 + English toggle: layout stacks correctly, full EN translation ("Jump right in", "36 tools", "PDF Editor Canvas — Edit or delete the real text directly (no eraser)…"), footer pushes naturally
+- dev.log all 200s, zero runtime errors, zero console errors (only benign Radix aria warning)
+
+Stage Summary:
+- RELEASE CONFIRMED AFTER SESSION RESTORE: every deliverable of the advanced-editing scope is live on origin/main (→ Vercel auto-deploy already triggered): (1) PDF object-level TRUE text edit/delete — click the PDF's real text, edit in place or delete natively, byte+pdfjs-verified no whiteout; redact, shapes, signature, page duplicate/reorder, font size/bold controls; (2) Image editor (crop/rotate/flip/filters/presets/draw/text/undo/export); (3) Spreadsheet editor (multi-sheet grid, row/col ops, XLSX+CSV, Bengali-safe UTF-8); (4) Markdown editor (live GFM preview, MD/HTML/PDF/DOCX export); (5) Audio editor (waveform select/trim/volume/fades, WAV export)
+- 36 tools total, 5 full-screen editors, bn/en complete; repo = github.com/icedept56-png/file-magic
+- Verification lesson: naive byte-scan of PDF streams misleads (object streams + binary false positives) — always confirm with pdfjs text extraction as ground truth
