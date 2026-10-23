@@ -55,6 +55,8 @@ interface AppState {
   category: string;
   recent: string[];
   lang: Lang;
+  /** files staged for the OCR studio (scanner → OCR hand-off); not persisted */
+  ocrHandoff: File[];
   openTool: (id: string) => void;
   goHome: () => void;
   setSearch: (s: string) => void;
@@ -62,6 +64,7 @@ interface AppState {
   hydrate: () => void;
   recordRecent: (id: string) => void;
   setLang: (l: Lang) => void;
+  setOcrHandoff: (files: File[]) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -71,6 +74,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   category: "all",
   recent: [],
   lang: "bn",
+  ocrHandoff: [],
   openTool: (id) => {
     // keep the user's search/category so returning home restores their context
     get().recordRecent(id);
@@ -117,4 +121,5 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (typeof document !== "undefined") document.documentElement.lang = lang;
     set({ lang });
   },
+  setOcrHandoff: (files) => set({ ocrHandoff: files }),
 }));

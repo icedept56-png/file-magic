@@ -32,6 +32,7 @@ import {
   RotateCcw,
   RotateCw,
   ScanLine,
+  ScanText,
   Trash2,
   UploadCloud,
 } from "lucide-react";
@@ -230,6 +231,8 @@ function canvasToBlob(c: HTMLCanvasElement, quality = 0.92): Promise<Blob> {
 export function ScanEditor() {
   const { t, num, lang } = useT();
   const goHome = useAppStore((s) => s.goHome);
+  const openTool = useAppStore((s) => s.openTool);
+  const setOcrHandoff = useAppStore((s) => s.setOcrHandoff);
 
   /* document state */
   const [pages, setPages] = useState<Page[]>([]);
@@ -369,6 +372,21 @@ export function ScanEditor() {
       setCur((c) => Math.max(0, Math.min(c, next.length - 1)));
       return next;
     });
+  };
+
+  /* hand the processed pages to the OCR studio (Day 2 integration) */
+  const sendToOcr = async () => {
+    if (!pages.length) return;
+    const files: File[] = [];
+    for (const p of pages) {
+      const c = processPage(p.base, p.rot, settingsRef.current, MAX_DIM);
+      const blob = await canvasToBlob(c, 0.92);
+      files.push(
+        new File([blob], `${stripExt(safeName(p.name)) || "scan"}-p${files.length + 1}.jpg`, { type: "image/jpeg" }),
+      );
+    }
+    setOcrHandoff(files);
+    openTool("ocr-studio");
   };
 
   /* ── exports ───────────────────────────────────────────────────────── */
@@ -735,6 +753,15 @@ export function ScanEditor() {
             >
               <Trash2 className="mr-2 h-4 w-4" aria-hidden />
               {t("scanDelete")}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => void sendToOcr()}
+              className="mt-2 h-11 w-full"
+            >
+              <ScanText className="mr-2 h-4 w-4" aria-hidden />
+              {t("scanOcr")}
             </Button>
           </div>
         </aside>

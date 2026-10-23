@@ -34,6 +34,7 @@ import {
   Music,
   FilePenLine,
   ScanLine,
+  ScanText,
 } from "lucide-react";
 
 import type { Category, ToolDef } from "./types";
@@ -67,6 +68,7 @@ export const EDITOR_IDS: readonly string[] = [
   "markdown-editor",
   "audio-editor",
   "document-scan",
+  "ocr-studio",
 ];
 
 export const TOOLS: ToolDef[] = [
@@ -545,6 +547,29 @@ export const TOOLS: ToolDef[] = [
     process: async () => {
       // the scanner runs in its own full-screen view — never in the workspace
       throw new Error("স্ক্যানারের নিজস্ব স্ক্রিন আছে — টুলটি খুলুন।");
+    },
+  },
+  {
+    id: "ocr-studio",
+    name: "OCR — ছবির লেখা তুলুন",
+    nameEn: "OCR — image to text",
+    desc: "স্ক্যান করা ছবি বা PDF থেকে বাংলা-ইংরেজি লেখা এডিটেবল টেক্সট/ওয়ার্ড বানান",
+    descEn: "Extract Bengali-English text from scanned images or PDFs into editable text/Word",
+    keywords: ["ocr", "bangla ocr", "image to text", "scanned", "ছবি থেকে টেক্সট", "ছবির লেখা", "টেক্সট তুলুন", "copy text", "scan to word"],
+    category: "document",
+    icon: ScanText,
+    gradient: "bg-gradient-to-br from-lime-500 to-emerald-600 shadow-lime-500/40",
+    glow: "rgba(132,204,22,0.35)",
+    files: { accept: "image/*,.png,.jpg,.jpeg,.webp,.bmp,.pdf,application/pdf", multiple: true },
+    inputMode: "file",
+    hint: "ছবি বা PDF (একাধিক দেওয়া যাবে)",
+    hintEn: "Images or a PDF (multiple allowed)",
+    actionLabel: "OCR স্টুডিও খুলুন",
+    actionLabelEn: "Open OCR studio",
+    options: [],
+    process: async () => {
+      // OCR studio runs in its own full-screen view — never in the workspace
+      throw new Error("OCR স্টুডিওর নিজস্ব স্ক্রিন আছে — টুলটি খুলুন।");
     },
   },
   {

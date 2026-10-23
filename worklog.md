@@ -432,3 +432,30 @@ Stage Summary:
 - Day 1 shipped: Document Scanner = 41st tool, full-screen editor #6 — flagship Bengali-market feature, all client-side
 - Lesson: verify EXPORT ORIENTATION with pdfjs page dims, not just byte structure — first export had inverted A4 logic that byte checks couldn't catch
 - Artifacts: docs/ROADMAP-60-DAYS.md, scan-editor.tsx, .verify/scan-*.png/pdf/b64 + seed-scanner.js
+
+---
+Task ID: 15
+Agent: main (Z.ai Code)
+Task: Day 2 (60-day roadmap) — OCR স্টুডিও: scanned images/PDF → editable Bengali+English text, integrated with the scanner
+
+Work Log:
+- Self-hosted the ENTIRE OCR stack (zero CDN dependency, PWA-offline posture preserved): bun add tesseract.js@7.0.0 → dist/tesseract.min.js + dist/worker.min.js → public/tesseract/, all 19 core wasm/js variants → public/tesseract/core/ (44MB, correct variant lazy-loaded at runtime), lang data → public/tessdata/ (ben.traineddata.gz 1.38MB + eng.traineddata.gz 10.9MB from tessdata.projectnaptha.com/4.0.0; browser caches in IndexedDB after first run)
+- Built src/components/file-hub/ocr-studio.tsx (~640 lines): script-tag engine loader (no bundler coupling) → createWorker(langs, OEM 1, self-hosted paths); jobs model (image=1 job, PDF=1 job/page via pdf.js render at 1800px, cap 30 + warning); sequential run with per-job progress (tesseract logger) and status icons; transient canvases released after recognition (memory bound); pdf.js docs kept for retry, destroyed on last-page-remove/unmount
+- Input intake: images (EXIF-safe, auto-up/downscale to 1800px long edge) + PDFs + drag-drop; language radios (বাংলা+English / শুধু বাংলা / শুধু English) with worker re-create on change
+- Output: combined editable textarea (per-page labels) → Copy (clipboard) / .txt / .docx (docx Packer, one Paragraph per line)
+- Scanner integration (store slice ocrHandoff + setOcrHandoff in app-store): scanner "এই স্ক্যান থেকে টেক্সট (OCR)" button exports processed pages as JPEG Files → handoff → OCR studio auto-loads and clears the slice
+- Registry: ocr-studio tool (ScanText icon, lime→emerald, keywords ocr/bangla/ছবি থেকে টেক্সট...) + EDITOR_IDS + page.tsx mapping + i18n +33 keys; document category now ১০
+- Bug fixes caught during self-review before testing: image files were never persisted to the file map (all image jobs would have failed), stale jobsRef at run end (local done/fail counters instead), removeJob didn't remove plain image rows, missing ocrPageOf key, oversized button label during engine load
+- E2E verified (agent-browser, real runs):
+  1) Clean synthetic pages (known ground truth): English "Total amount due: $1,250.00 / Payment due within 15 days / Invoice No: 2024-047" → 100% exact; Bengali "জন্ম নিবন্ধন ফর্ম / এই লাইনে পরীক্ষামূলক বাংলা লেখা আছে / আবেদনকারীর নাম ও ঠিকানা" → 100% exact
+  2) docx export: PK magic + mammoth roundtrip proves both bn+en preserved (9789B)
+  3) Scanner → OCR handoff: 2 pages auto-loaded; noisy scanned photos → OCR extracted title + 16 lines (one এই→ওই slip on the degraded synthetic photo) — enhancement pipeline visibly paid off
+  4) PDF input: pdf-lib-built scanned-look PDF → pdf.js render → OCR → "SCANNED DOCUMENT / 12,500 / Signed by the landlord" all captured
+  5) EN UI (Extract text/Try again/Copy/Text (.txt)/Word (.docx)) + mobile 390px no overflow; jobs list shows per-page word counts
+- Gates: eslint 0, tsc clean (src/), dev.log 0 non-200; document tool count ১০ confirmed on home
+
+Stage Summary:
+- OCR shipped as tool #42 (editor view #7): স্ক্যান→টেক্সট→Word সম্পূর্ণ ফ্লো এখন অ্যাপেই, ১০০% ডিভাইসে
+- Bengali OCR accuracy on clean documents is excellent (tessdata_fast 4.0.0 ben); noisy photos benefit from running through the scanner first
+- Lesson: when a click triggers React re-renders that swap DOM (handoff auto-load), agent-browser find-by-text can hit a stale node — re-snapshot and click by fresh ref
+- Artifacts: ocr-studio.tsx, public/tesseract/*, public/tessdata/*, .verify/seed-ocr.js + ocr-export.docx + ocr-mobile.png
