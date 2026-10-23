@@ -15,11 +15,26 @@ import { ToolGrid } from "@/components/file-hub/tool-grid";
 import { Features } from "@/components/file-hub/features";
 import { Workspace } from "@/components/file-hub/workspace";
 import { PdfEditor } from "@/components/file-hub/pdf-editor";
+import { ImageEditor } from "@/components/file-hub/image-editor";
+import { SheetEditor } from "@/components/file-hub/sheet-editor";
+import { MarkdownEditor } from "@/components/file-hub/markdown-editor";
+import { AudioEditor } from "@/components/file-hub/audio-editor";
 import { Footer } from "@/components/file-hub/footer";
 import { HistorySync } from "@/components/file-hub/history-sync";
 
+/** editor tool id → its full-screen component */
+const EDITOR_VIEWS: Record<string, React.ComponentType> = {
+  "pdf-editor": PdfEditor,
+  "image-editor": ImageEditor,
+  "sheet-editor": SheetEditor,
+  "markdown-editor": MarkdownEditor,
+  "audio-editor": AudioEditor,
+};
+
 export default function Home() {
   const view = useAppStore((s) => s.view);
+  const activeToolId = useAppStore((s) => s.activeToolId);
+  const EditorView = activeToolId ? EDITOR_VIEWS[activeToolId] : undefined;
 
   return (
     <div className="relative flex min-h-screen bg-background text-foreground">
@@ -47,7 +62,7 @@ export default function Home() {
                 <ToolGrid />
                 <Features />
               </motion.div>
-            ) : view === "editor" ? (
+            ) : view === "editor" && EditorView ? (
               <motion.div
                 key="editor"
                 initial={{ opacity: 0, y: 10 }}
@@ -55,7 +70,7 @@ export default function Home() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <PdfEditor />
+                <EditorView />
               </motion.div>
             ) : (
               <motion.div

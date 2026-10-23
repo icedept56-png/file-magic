@@ -30,6 +30,9 @@ import {
   FileJson,
   Binary,
   QrCode,
+  Paintbrush,
+  Music,
+  FilePenLine,
 } from "lucide-react";
 
 import type { Category, ToolDef } from "./types";
@@ -51,6 +54,18 @@ export const CATEGORIES: Category[] = [
 
 const PDF_ACCEPT = "application/pdf,.pdf";
 const IMG_ACCEPT = "image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg";
+const SHEET_ACCEPT = ".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv";
+const MD_ACCEPT = ".md,.markdown,.txt,text/markdown,text/plain";
+const AUDIO_ACCEPT = "audio/*,video/*,.mp3,.wav,.ogg,.m4a,.flac,.mp4,.webm";
+
+/** tools that open their own full-screen editor view instead of the workspace */
+export const EDITOR_IDS: readonly string[] = [
+  "pdf-editor",
+  "image-editor",
+  "sheet-editor",
+  "markdown-editor",
+  "audio-editor",
+];
 
 export const TOOLS: ToolDef[] = [
   // ─── PDF ────────────────────────────────────────────────────────────────
@@ -936,6 +951,96 @@ export const TOOLS: ToolDef[] = [
     ],
     process: data.textStats,
   },
+  // ─── PREMIUM EDITORS (full-screen canvas views) ───────────────────────────
+  {
+    id: "image-editor",
+    name: "ছবি এডিটর",
+    nameEn: "Image Editor",
+    desc: "প্রিমিয়াম ক্যানভাসে ছবি এডিট — ক্রপ, ঘোরানো, ফ্লিপ, প্রো ফিল্টার, ড্র ও টেক্সট",
+    descEn: "Edit images on a premium canvas — crop, rotate, flip, pro filters, draw & text",
+    keywords: ["edit", "editor", "canvas", "crop", "filter", "rotate", "flip", "draw", "brightness", "photo"],
+    category: "image",
+    icon: Paintbrush,
+    gradient: "bg-gradient-to-br from-fuchsia-500 to-purple-600 shadow-fuchsia-500/40",
+    glow: "rgba(217,70,239,0.35)",
+    files: { accept: IMG_ACCEPT, multiple: false },
+    inputMode: "file",
+    hint: "ছবি ফাইল (PNG, JPG, WebP...)",
+    hintEn: "Image file (PNG, JPG, WebP...)",
+    actionLabel: "এডিটর খুলুন",
+    actionLabelEn: "Open editor",
+    options: [],
+    process: async () => {
+      // the editor runs in its own full-screen canvas view — never in the workspace
+      throw new Error("ছবি এডিটরের নিজস্ব ক্যানভাস আছে — টুলটি খুলুন।");
+    },
+  },
+  {
+    id: "sheet-editor",
+    name: "স্প্রেডশিট এডিটর",
+    nameEn: "Spreadsheet Editor",
+    desc: "এক্সেল/CSV সরাসরি এডিট — সেল, রো, কলাম বদলান, XLSX ও CSV এ সেভ",
+    descEn: "Edit Excel/CSV directly — cells, rows & columns, save as XLSX or CSV",
+    keywords: ["edit", "editor", "excel", "xlsx", "csv", "cells", "rows", "columns", "sheet"],
+    category: "spreadsheet",
+    icon: Table2,
+    gradient: "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/40",
+    glow: "rgba(16,185,129,0.35)",
+    files: { accept: SHEET_ACCEPT, multiple: false },
+    inputMode: "file",
+    hint: "XLSX বা CSV ফাইল",
+    hintEn: "XLSX or CSV file",
+    actionLabel: "এডিটর খুলুন",
+    actionLabelEn: "Open editor",
+    options: [],
+    process: async () => {
+      throw new Error("স্প্রেডশিট এডিটরের নিজস্ব ভিউ আছে — টুলটি খুলুন।");
+    },
+  },
+  {
+    id: "markdown-editor",
+    name: "মার্কডাউন এডিটর",
+    nameEn: "Markdown Editor",
+    desc: "লাইভ প্রিভিউসহ মার্কডাউন লিখুন — HTML, PDF ও DOCX এ এক্সপোর্ট",
+    descEn: "Write Markdown with live preview — export as HTML, PDF or DOCX",
+    keywords: ["edit", "editor", "markdown", "md", "preview", "write", "notes", "html"],
+    category: "document",
+    icon: FilePenLine,
+    gradient: "bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-500/40",
+    glow: "rgba(249,115,22,0.35)",
+    files: { accept: MD_ACCEPT, multiple: false },
+    inputMode: "file",
+    hint: ".md বা .txt ফাইল",
+    hintEn: ".md or .txt file",
+    actionLabel: "এডিটর খুলুন",
+    actionLabelEn: "Open editor",
+    options: [],
+    process: async () => {
+      throw new Error("মার্কডাউন এডিটরের নিজস্ব ভিউ আছে — টুলটি খুলুন।");
+    },
+  },
+  {
+    id: "audio-editor",
+    name: "অডিও এডিটর",
+    nameEn: "Audio Editor",
+    desc: "ওয়েভফর্মে অডিও এডিট — ট্রিম, ভলিউম, ফেড ইন/আউট, ভিডিও থেকে অডিও",
+    descEn: "Edit audio on a waveform — trim, volume, fade in/out, extract from video",
+    keywords: ["edit", "editor", "audio", "trim", "cut", "waveform", "volume", "fade", "music", "wav"],
+    category: "utility",
+    icon: Music,
+    gradient: "bg-gradient-to-br from-teal-500 to-cyan-600 shadow-teal-500/40",
+    glow: "rgba(20,184,166,0.35)",
+    files: { accept: AUDIO_ACCEPT, multiple: false },
+    inputMode: "file",
+    hint: "অডিও বা ভিডিও ফাইল",
+    hintEn: "Audio or video file",
+    actionLabel: "এডিটর খুলুন",
+    actionLabelEn: "Open editor",
+    options: [],
+    process: async () => {
+      throw new Error("অডিও এডিটরের নিজস্ব ভিউ আছে — টুলটি খুলুন।");
+    },
+  },
 ];
 
 export function getTool(id: string): ToolDef | undefined {
@@ -959,3 +1064,8 @@ export function filterTools(query: string, category: string): ToolDef[] {
 }
 
 export const TOOL_COUNT = TOOLS.length;
+
+/** true when the tool opens its own full-screen editor view */
+export function isEditorTool(id: string): boolean {
+  return EDITOR_IDS.includes(id);
+}

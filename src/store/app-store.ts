@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { isEditorTool } from "@/lib/tools/registry";
 
 export type View = "home" | "tool" | "editor";
 export type Lang = "bn" | "en";
@@ -73,8 +74,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   openTool: (id) => {
     // keep the user's search/category so returning home restores their context
     get().recordRecent(id);
-    // the PDF editor gets its own full-screen canvas view
-    if (id === "pdf-editor") {
+    // editor tools (PDF, image, sheet, markdown, audio) get their own full-screen canvas view
+    if (isEditorTool(id)) {
       set({ view: "editor", activeToolId: id });
       scrollTop();
       if (typeof window !== "undefined") {

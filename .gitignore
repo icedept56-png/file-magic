@@ -65,3 +65,4 @@ server.log
 /prisma/dev.db
 agent-ctx/
 /.verify/
+/tool-results/

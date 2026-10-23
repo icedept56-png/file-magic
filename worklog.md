@@ -219,3 +219,134 @@ Stage Summary:
 - The flagship demand is DONE: users can now click the PDF's REAL text and edit/delete it directly — the original operators are surgically removed from the content stream (searchable/selectable-true removal), NOT whiteout paint-over. Plus redaction, shapes, signature, page duplicate/reorder, per-element font size/bold.
 - Key artifacts: src/lib/pdf/text-surgery.ts (new), pdf-editor.tsx (~2080 lines), signature-pad.tsx (new), i18n.ts, registry.ts
 - Verification harness: .verify/surgery-test.ts (16 checks) + verify-download*.ts — reproducible proof
+
+---
+Task ID: 11-a
+Agent: main (Z.ai Code)
+Task: Core integration for 4 new premium editors (image, spreadsheet, markdown, audio) — user demand: "add more advance tool for all type of file if i edit"
+
+Work Log:
+- registry.ts: added 4 editor tool defs (image-editor Paintbrush fuchsia, sheet-editor Table2 emerald, markdown-editor FilePenLine orange, audio-editor Music teal) + EDITOR_IDS array + isEditorTool(); accepts constants SHEET_ACCEPT/MD_ACCEPT/AUDIO_ACCEPT
+- app-store.ts: openTool now routes via isEditorTool() instead of hardcoded "pdf-editor"
+- history-sync.tsx: deep-link ?tool= now opens any editor view
+- page.tsx: EDITOR_VIEWS map (id → full-screen component), renders EditorView dynamically
+- i18n.ts: +105 [bn,en] keys — edStudio* (home studio section), ie* (image editor: tools, 8 filter sliders, 6 presets, save/export), se* (sheet editor: rows/cols/save xlsx+csv/big-warn), me* (markdown editor: toolbar, word count, save html/pdf/docx/md), ae* (audio editor: trim/play/volume/fade/save wav)
+- editor-spotlight.tsx: upgraded to full "Editing Studio" — flagship PDF banner + 4-card grid for the new editors
+- Created stub files image-editor.tsx / sheet-editor.tsx / markdown-editor.tsx / audio-editor.tsx (named exports ImageEditor, SheetEditor, MarkdownEditor, AudioEditor)
+- Verified: tsc clean (src/), eslint clean
+
+Stage Summary:
+- Routing fully generalized: ANY editor id opens full-screen view; home shows 5-editor studio grid; 35 tools total.
+- Next: subagents 11-b/c/d/e implement the 4 editors in parallel (one file each, no shared-file edits), then 11-f verifies E2E.
+
+---
+Task ID: 11-c
+Agent: sheet-editor agent
+Task: Implement full Spreadsheet Editor (sheet-editor.tsx) — load xlsx/xls/csv, editable grid, row/col ops, multi-sheet tabs, XLSX+CSV export
+
+Work Log:
+- Replaced stub in src/components/file-hub/sheet-editor.tsx (ONLY file touched) with full-screen editor matching pdf-editor shell conventions (goHome from useAppStore, sticky top-16 backdrop-blur toolbar, fm-card, motion entry, sonner toasts, useT/num Bengali-first, emerald/teal/amber/rose-only palette)
+- Load: dropzone (drag+drop & click, accept .xlsx/.xls/.csv) → arrayBuffer → dynamic `await import("xlsx")` → XLSX.read({type:"array"}) → per-sheet sheet_to_json(header:1, raw:false, defval:"") → string[][]; normalizeSheet pads all rows to max col count, guarantees ≥1 row & ≥1 col; state {sheetNames, data: Record<string,string[][]>, active}; failure → toast seLoadFail
+- Grid: border-separate HTML table in fm-scroll max-h-[65vh] overflow-auto; colName(i) A..Z/AA..AB headers; sticky top-0 header row + sticky left-0 row-number column (z-10/z-30, opaque bg); shadcn Input cells h-9 min-w-[7rem] w-full text-sm emerald focus ring, controlled value, aria-label seCellAria r×c
+- Perf: memoized GridRow module-scope component — cells render via index loop over full row (no per-render row slicing) so a keystroke copies only the affected row and re-renders just that row; selection state changes re-render minimally
+- Limits: >300 rows or >40 cols → render-time slice only (full data intact), amber seBigWarn banner with rendered/total counts
+- Selection: row-number button → selectedRow, column-letter button → selectedCol, cell focus sets both; amber-50/amber-100 highlights (row/col/intersection); toolbar badges show seSelRow/seSelCol with num()
+- Ops toolbar: add row (padded), add column (pad all rows), delete row (guard selectedRow≥0 & keep ≥1 row), delete column (guard ≥0 & keep ≥1 col) — all immutable setWb updates; disabled states wired
+- Sheet tabs: horizontally scrollable bar, active = emerald→teal gradient, switch resets selection
+- Save XLSX: book_new → aoa_to_sheet per sheet → book_append_sheet → write({bookType:"xlsx",type:"array"}) → Blob (openxml mime) → downloadBlob(baseName-edited.xlsx) + toast seSaved/seSaveFail
+- Save CSV: active sheet aoa_to_sheet → sheet_to_csv → "\uFEFF" BOM prepend → text/csv;charset=utf-8 → baseName-edited.csv (Bengali-safe in Excel)
+- All 22 se* i18n keys used exactly as provided (no new keys); inline bn/en fallback only for unlabeled back button (pdf-editor pattern)
+- Verified: `bunx tsc --noEmit | rg sheet-editor` → empty; `bun run lint` → clean (eslint . no output); no blue/indigo classes; git status confirms only sheet-editor.tsx written by this agent
+
+Stage Summary:
+- Spreadsheet editor complete: multi-sheet load, 300×40-editable sticky grid with Bengali numerals, row/col select+insert+delete, XLSX & CSV (BOM) export — 100% client-side, immutable state, responsive mobile toolbar.
+- Ready for 11-f E2E pass alongside image/markdown/audio editors.
+
+---
+Task ID: 11-e
+Agent: audio-editor agent
+Task: Implement full-screen Audio Editor (trim + preview + WAV export) at src/components/file-hub/audio-editor.tsx (replaced stub; only file touched)
+
+Work Log:
+- Followed pdf-editor shell conventions (back header via useAppStore goHome, fm-card, btn-shine, useT t/num/lang, sonner toasts); named export AudioEditor(), no default export
+- Load: dropzone accept="audio/*,video/*,.mp3,.wav,.ogg,.m4a,.flac,.mp4,.webm" → file.arrayBuffer() → temp AudioContext.decodeAudioData (mp3/wav/ogg/m4a + mp4/webm audio track in Chromium) → ctx.close() in finally → AudioBuffer state; NaN/short-duration guarded; failure → toast aeLoadFail; toolbar badges: aeDuration (num, 1 decimal s), kHz, channel count, file size
+- Waveform: canvas 160px css height, dpr-aware (setTransform), per-column min/max peaks from ch0 (stereo mixes (ch0+ch1)/2), 2px bars + 2px gap, emerald→teal gradient (#10b981→#0d9488), faint center line; peaks cached per (cols:length:ch) key so selection redraws are cheap; ResizeObserver → rAF redraw; redrag/select overlay: rgba(244,63,94,0.18) region + 2 rose-500 (#f43f5e) marker lines; touch-action none, pointer capture drag-to-select with normalize + MIN_SEL=0.05 clamp
+- Selection: two shadcn Sliders (aeStart/aeEnd, 0..duration step 0.01) that clamp each other (start max = end-0.05; end min = start+0.05), defaults full length; selection length badge (num, 2 decimals); any selection change stops playback
+- Preview: AudioContext reused via ref (recreated if closed), BufferSource slice source.start(t0, sel.start, sel.end-sel.start) → persistent GainNode; Play/Pause toggle (Play ↔ Square icon, rose when playing) + separate Stop; onended auto-cleanup; volume (0–2) and fades (0–5s) apply LIVE mid-playback via envelope re-schedule (cancelScheduledValues → setValueAtTime(gainAt(now)) → remaining linearRamps); fade windows clamped to dur/2 so they never overlap
+- Export WAV: pure encodeWav(channelsData, sampleRate) — 44-byte RIFF header (RIFF/size/WAVE/fmt /16/PCM=1/ch/sr/byteRate/blockAlign/bits=16/data/dataSize) + interleaved 16-bit signed LE samples scaled 32767 with [-1,1] clamp; slice via floor(start*sr)..floor(end*sr) per channel, >2ch averaged to mono, ≤2ch kept; gain*vol + fade-in i/fiN + fade-out (1-i/foN) scaling; Blob audio/wav → downloadBlob(`${base}-edited.wav`) → toast aeSaved / aeSaveFail
+- Hygiene: no manual object URLs (downloadBlob self-revokes); playback ctx closed + source stopped on unmount and on closeFile (X button); decode ctx always closed; playingRef mirrors prevent stale closures; spinner (aeDecode) covers large-file decode
+- Style: emerald/teal/rose/amber only, no blue/indigo; Bengali-first via t(); mobile stacking (grid sm:grid-cols-2, wrapping toolbar); aria-labels on section/canvas/sliders/buttons (aeEditorAria, aePlay/aePause/aeStop reuse)
+- Verification: bunx tsc --noEmit → 0 errors for audio-editor (src/ fully clean; only pre-existing skills/ sandbox errors); bun run lint → 0 errors/warnings; encodeWav extracted verbatim from the file and fuzz-checked in bun — 22/22 spec assertions PASS (all header offsets 0..44, riffSize=36+dataSize, byteRate=sr*ch*2, blockAlign=ch*2, interleaving round-trip on stereo sine, mono layout, ±1 clamp, 32767 scaling)
+
+Stage Summary:
+- Audio Editor is production-complete: decode any audio/video-audio → dpr-crisp waveform → drag or slider trim (rose overlay + markers) → live volume/fade preview → byte-perfect 16-bit PCM WAV export (verified 22/22 against WAV spec). Only file changed: src/components/file-hub/audio-editor.tsx (~600 lines). Ready for 11-f E2E pass.
+
+---
+Task ID: 11-d
+Agent: markdown-editor agent
+Task: Implement the full Markdown Editor full-screen component (src/components/file-hub/markdown-editor.tsx) — dropzone, two-pane editor + live preview, toolbar, stats, MD/HTML/PDF/DOCX exports
+
+Work Log:
+- Replaced the stub entirely (~620 lines, single file, no other files touched). Named export `export function MarkdownEditor()`; shell conventions copied from pdf-editor.tsx (sticky top-16 header, min-h-[calc(100vh-4rem)], goHome from useAppStore, ghost back button + ArrowLeft, sonner toasts, useT() with Bengali-first labels + num() digits).
+- Welcome state: large dashed fm-card dropzone (drag-over highlight, hidden file input accept=".md,.markdown,.txt,text/markdown,text/plain", ext/MIME guard → meLoadFail toast), meDrop + meDropHint copy, mePick button, "start typing" button (inline bilingual label, pdf-editor precedent) that opens the editor empty, plus a small textarea whose first keystroke switches to the editor.
+- Editor layout: mobile shadcn Tabs toggle (meEditor default / mePreview, lg:hidden) + lg:grid-cols-2 two-pane grid; preview pane is ALWAYS mounted (visibility via cn classes) so the PDF rasterizer always finds layout — exportPdf flips to the preview tab when offsetParent===null (mobile editor tab) and restores after.
+- Live preview: react-markdown v10 with module-level mdComponents — h1-h6, p, ul/ol/li, blockquote (border-l-4 emerald-400), code with [pre_&] arbitrary variants (inline chip bg-emerald-50 vs dark pre block bg-emerald-950), wrapped scrollable table (th bg-emerald-50), emerald links, hr, img, strong. Zero blue/indigo classes.
+- Toolbar: 9 flex-wrap chips (Bold/Italic/Heading1/Heading2/Link2/Code/Quote/List/Table) implementing setRangeText-based surround (keeps native undo), multi-line prefixLines (# , ## , > , - ), [title](https://) link insert that selects the "title" placeholder, 3×3 table template; caret restored via rAF + setSelectionRange after React state sync.
+- Live stats: words (split /\s+/ filter truthy) + chars badges with num() Bengali digits, aria-live.
+- Exports (4 header buttons, icon+short label collapsing to icons on mobile, per-button Loader2 + meSaving busy, disabled when text empty, meSaved/meSaveFail toasts):
+  - MD → text/markdown blob → {base}-edited.md
+  - HTML → await marked.parse → standalone styled document (utf-8 meta, Bengali-capable font stack, emerald accents, body max-w-2xl centered)
+  - PDF → html2canvas-pro(preview inner div, scale 2, white bg) → A4 pagination loop (pageW=210 pageH=297 mm, pxPerMm = canvas.width/pageW, sliceH = pageH*pxPerMm, temp canvas drawImage per chunk, addPage) → jspdf save; Bengali-safe via rasterization
+  - DOCX → dynamic import docx v9; hand-rolled line parser: #→HEADING_1..6, fenced ``` blocks → Courier New, -/*/+/numbered → bullets/plain with number text, > → italic + indent 720, **bold**/*italic*/`code` regex splitter → TextRun[]; Packer.toBlob (codebase precedent in docs.ts/pdf.ts — same OpenXML MIME, avoids toBuffer cast) → {base}-edited.docx
+- Verification: bunx tsc --noEmit → 0 errors for this file; bun run lint → 0 problems (fixed one jsx-a11y alt-text warning by destructuring alt explicitly in the img component); re-checked all 26 me* i18n keys exist and are used, no blue/indigo, git status shows only markdown-editor.tsx changed by this agent.
+
+Stage Summary:
+- Markdown Editor is production-complete: drop/open/type → edit with live styled preview → export MD/HTML/PDF/DOCX fully on-device (Bengali-correct in all four formats). One file, zero shared-file edits, tsc + eslint clean.
+- Deliberate deviations (both codebase-precedented): DOCX via Packer.toBlob instead of toBuffer+cast (same output MIME); back-button aria-label + "start typing" button use inline bilingual strings (pdf-editor pattern) since no me* key exists for them.
+
+---
+Task ID: 11-b
+Agent: image-editor agent
+Task: Implement full ImageEditor component (src/components/file-hub/image-editor.tsx) — canvas studio with crop/filter/draw/text, rotate/flip, undo, export
+
+Work Log:
+- Replaced the 11-a stub with a complete ~1210-line ImageEditor (named export, no default), matching pdf-editor shell conventions (sticky header w/ ghost back button + ArrowLeft + goHome, fm-card, rounded-2xl/3xl, fuchsia dropzone card with drag-drop + accept image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp, ieLoadFail toast, Loader2)
+- 3-layer canvas architecture exactly per spec: baseCanvasRef (offscreen, transforms applied, NO filters) + paintCanvasRef (pen strokes only) + visible displayCanvas; drawNow() = ctx.filter=filterCSS → drawImage(base) → filter="none" → drawImage(paint) → fillText for each text el; display canvas sized to base dims, CSS max-w-full + max-h-[70vh]; redraw is on-demand via rAF-coalesced scheduleRedraw() + effect keyed on [name, filt, texts] only
+- Load via createImageBitmap(file) with try/catch → toast.error(t("ieLoadFail")); resets undo/texts/filter/tool/format per image
+- Tools: chip toolbar (crop/filter/draw/text, active = gradient from-emerald-500 to-teal-600, click toggles off) + ALWAYS-VISIBLE quick buttons in header (rotateL/RotateCcw, rotateR/RotateCw, flipH/FlipHorizontal2, flipV/FlipVertical2, undo/Undo2, aria-label+title, undo disabled when stack empty)
+- Crop: overlay with crop rect (box-shadow 9999px dim), pointer-captured drag-to-move + 4 corner handles (nw/ne/sw/se), min 20px, clamped to canvas; live size badge in canvas px (num()); ieApply crops base via drawImage(srcRect) at native scale, ieCancel exits; re-inits rect on tool open AND on dims change (rotate during crop)
+- Rotate/Flip: temp canvas transform (translate center + rotate ±90° / scale(-1)) swapping W/H for rotate; per spec, paint+texts are FLATTENED onto base before every rotate/flip/crop (flattenOntoBase), then layers cleared — no skew, undo restores pre-op layers
+- Draw: pointer events + touch-action:none on canvas, round cap/join, dot on down + quadratic midpoint smoothing (moveTo prevMid → quadCurve through last), color input default #e11d48, brush slider 1-40 default 4, undo pushed at stroke start
+- Text: click canvas → contentEditable overlay (pdf-editor lesson applied: React NEVER renders children; focus via effect after mount so mousedown can't blur it; live-commit onInput into ref-synced state so it renders on canvas), Enter/Escape/blur/tool-switch finalizes, empty-on-finalize removes, Delete/Backspace-when-empty removes; hit-test drag of existing text via ctx.measureText bbox (actualBoundingBoxAscent/Descent); panel controls color/font(12-96 default 28)/bold apply live to the open box
+- Filters: 8 shadcn Sliders with exact spec ranges (brightness/contrast/saturate 0-200, blur 0-20 step .5, gray/sepia/invert 0-100, hue 0-360), Bengali value badges via num(), 6 preset chips (original/vivid/mono/warm/cool/vintage with exact spec values) + reset; filterCSS includes only non-defaults
+- Undo: max-30 snapshot stack of {base, paint (canvas clones via drawImage), texts (deep copy), filter}; pushed before stroke start, rotate, flip, crop apply, text create, text drag; undo restores refs+state and clears any open text session
+- Export: sticky bottom bar — format Select (png/jpeg/webp default png), quality Slider 1-100 default 92 (jpeg/webp only), Save button w/ Loader2 + ieSaving; toBlob at full display-canvas resolution (filters+paint+texts baked), jpeg flattened onto white first, downloadBlob(`${stripExt(name)}-edited.${ext}`), toast ieSaved/ieSaveFail
+- UI/UX: emerald/teal/rose/fuchsia palette only (grep-verified zero blue/indigo/sky/cyan/violet/purple), conic-gradient checkerboard behind canvas for transparency, mobile-first (canvas first, panel stacks below, lg:grid-cols-[1fr_340px] sticky panel), toolbar flex-wrap, aria-labels on all icon buttons, canvas role="img" aria-label ieEditorAria, only-existing ie* i18n keys (data-driven slider/preset labels typed as StrKey so tsc proves existence)
+
+Stage Summary:
+- image-editor.tsx is production-ready and wired into the existing EDITOR_VIEWS routing (no shared-file edits; registry/i18n/store untouched by this agent)
+- Verification: bunx tsc --noEmit → zero errors mentioning image-editor; bun run lint → zero errors; every used i18n key cross-checked against the allowed ie* list; no blue/indigo classes; ONLY src/components/file-hub/image-editor.tsx written by this agent
+- Caveats: ctx.filter (CSS filter syntax) is used for live filters — supported in all modern Chromium/Firefox/Safari 18+; text renders with `sans-serif` (Hind Siliguri Bengali glyphs come from the loaded webfont fallback chain); editing existing text after finalize is not offered (click = drag-move per spec); GIF imports take the first frame
+
+---
+Task ID: 11-f
+Agent: main (Z.ai Code)
+Task: End-to-end verification of all 4 new editors + fixes + release (user: "add more advance tool for all type of file if i edit")
+
+Work Log:
+- E2E via agent-browser (desktop 1280×900 + mobile 390×844, bn/en):
+  - Home: studio section renders (PDF banner + 4 new cards); category counts auto-updated (35 tools); recent chips show new editors
+  - IMAGE EDITOR: load 640×400 PNG → canvas render → rotate 90° (canvas 400×640) → Vivid preset (contrast 115/sat 140 confirmed via sliders) → freehand stroke (canvas bytes changed) → text tool click → contentEditable appeared → typed Bengali "ম্যাজিক" → Escape commit → canvas grew → SAVE → binary-verified PNG (magic 89504E47, IHDR 400×640 RGBA, name test-edited.png)
+  - SHEET EDITOR: deep-link load → inject Bengali CSV → FOUND+FIXED REAL BUG: SheetJS reads CSV byte arrays as CP1252 → Bengali mojibake (নাম → 9 chars); fix: TextDecoder UTF-8 + XLSX.read(type:"string") for .csv; re-verify: নাম = 3 chars U+09A8 ✅ → edit Banana→কলা → add row → CSV export (BOM EF BB BF + UTF-8 কলা verified byte-level) → XLSX export (PK zip) → round-trip parsed with SheetJS: header+edit+added row all present
+  - MARKDOWN EDITOR: load test.md → live preview (H1/bold/italic/list/blockquote/inline-code, word count ২৩ শব্দ in Bengali digits) → FOUND GAP: GFM tables not rendered (no remark-gfm) → FIXED: bun add remark-gfm + remarkPlugins={[remarkGfm]} → table renders (2 rows) → bold toolbar wraps selection (**Hello**) → exports: MD (154B) ✅, HTML (2.3KB standalone) ✅, PDF (45KB, %PDF-1.3, 1 page, raster /Image XObject → Bengali-safe, %%EOF) ✅ — NOTE: jsPDF save() uses FileSaver MouseEvent dispatch (invisible to anchor.click() patches; verified via URL.createObjectURL instrumentation), DOCX (9.8KB PK zip, parsed: Heading1 "Magic Notes", Bengali quote, <w:b/> bold runs, bullets) ✅
+  - AUDIO EDITOR: inject 3s stereo 44.1kHz WAV → waveform 900×160 rendered, badges (দৈর্ঘ্য ৩.০s / ৪৪.১ kHz / ২ ch, Bengali digits) → drag-select on waveform (0.50→1.50s, sliders sync) → play 1.6s + stop (zero errors) → volume 0.5 → SAVE → byte-verified: RIFF/WAVE, ch=2, sr=44100, bits=16, dataSize=176400 (exactly 1.0s), maxAbs=6554 vs expected 6553 (1 LSB!) → fade-out 0.3s re-export: first half full amplitude, tail ramps 3926→0 ✅ (earlier "silence" scare was single-sample picks at sine zero-crossings, not a bug)
+  - PDF editor regression: deep-link opens normally; routing generalization safe
+  - Mobile 390px: studio grid stacks, footer pushes naturally (bottom 10128 ≤ docH 10167, no gap); English mode: studio cards + editor headings all translate
+- Housekeeping: test assets in .verify/ (gitignored); public/ test copies removed; harness scripts (inject-file.sh, inject-url.sh, dlpatch*.js) kept local for future sessions
+- Quality gates: tsc 0 errors (src/), eslint 0 errors, dev.log all 200s no errors
+
+Stage Summary:
+- ALL 4 NEW PREMIUM EDITORS LIVE AND BINARY-VERIFIED: Image (crop/rotate/flip/8 filters/6 presets/draw/text/undo/export png-jpeg-webp), Spreadsheet (multi-sheet grid editing, row/col ops, XLSX+CSV export, Bengali-safe), Markdown (live preview + GFM, toolbar, MD/HTML/PDF/DOCX exports), Audio (waveform select, trim, volume, fades, byte-perfect WAV export, video-audio extraction supported)
+- 2 real bugs found & fixed during E2E: CSV UTF-8 mojibake (sheet-editor), missing GFM table plugin (markdown-editor); 1 harness lesson: jsPDF uses MouseEvent-based save
+- Tool count now 35; 5 full-screen editors (PDF + image + sheet + markdown + audio); home shows "Editing Studio" grid
+- Key artifacts: image-editor.tsx (~1212 lines), sheet-editor.tsx (~650), markdown-editor.tsx (~622), audio-editor.tsx (~900), registry.ts (+4 tools/EDITOR_IDS), app-store/history-sync (generalized routing), editor-spotlight.tsx (studio), i18n.ts (+105 keys), package.json (+remark-gfm)

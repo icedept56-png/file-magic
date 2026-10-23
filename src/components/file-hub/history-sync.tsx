@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { getTool } from "@/lib/tools/registry";
+import { getTool, isEditorTool } from "@/lib/tools/registry";
 import { useAppStore } from "@/store/app-store";
 
 /**
@@ -18,7 +18,7 @@ export function HistorySync() {
     // restore recent tools (client only — avoids hydration mismatch)
     store.hydrate();
 
-    // deep link support: /?tool=merge-pdf (pdf-editor opens its canvas view)
+    // deep link support: /?tool=merge-pdf (editor tools open their canvas view)
     const params = new URLSearchParams(window.location.search);
     const requested = params.get("tool");
     if (requested && getTool(requested)) {
@@ -26,11 +26,11 @@ export function HistorySync() {
       window.history.replaceState({ fm: "home" }, "");
       useAppStore.getState().recordRecent(requested);
       useAppStore.setState({
-        view: requested === "pdf-editor" ? "editor" : "tool",
+        view: isEditorTool(requested) ? "editor" : "tool",
         activeToolId: requested,
       });
       window.history.pushState(
-        { fm: requested === "pdf-editor" ? "editor" : "tool", id: requested },
+        { fm: isEditorTool(requested) ? "editor" : "tool", id: requested },
         ""
       );
     }

@@ -1,15 +1,74 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowRight, Eraser, Highlighter, ImagePlus, SquarePen, Type } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Eraser,
+  Highlighter,
+  ImagePlus,
+  Music,
+  Paintbrush,
+  SquarePen,
+  Table2,
+  Type,
+  FilePenLine,
+} from "lucide-react";
 
-import { useT } from "@/lib/i18n";
+import { useT, pick } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 
-/** Full-width premium spotlight banner for the PDF editor canvas */
+/** Full-width premium spotlight section for ALL editor canvases */
 export function EditorSpotlight() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const openTool = useAppStore((s) => s.openTool);
+
+  const cards = [
+    {
+      id: "image-editor",
+      Icon: Paintbrush,
+      tile: "bg-gradient-to-br from-fuchsia-500 to-purple-600 shadow-fuchsia-500/40",
+      title: t("ieTitle"),
+      desc: pick(
+        lang,
+        "ক্রপ, ঘোরানো, ফ্লিপ, প্রো ফিল্টার, ড্র ও টেক্সট — ছবির সম্পূর্ণ স্টুডিও।",
+        "Crop, rotate, flip, pro filters, draw & text — a full photo studio."
+      ),
+    },
+    {
+      id: "sheet-editor",
+      Icon: Table2,
+      tile: "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/40",
+      title: t("seTitle"),
+      desc: pick(
+        lang,
+        "এক্সেল/CSV সেল সরাসরি এডিট, রো-কলাম বদলান, XLSX ও CSV সেভ।",
+        "Edit Excel/CSV cells directly, manage rows & columns, save as XLSX or CSV."
+      ),
+    },
+    {
+      id: "markdown-editor",
+      Icon: FilePenLine,
+      tile: "bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-500/40",
+      title: t("meTitle"),
+      desc: pick(
+        lang,
+        "লাইভ প্রিভিউসহ লিখুন — HTML, PDF ও DOCX এক্সপোর্ট করুন।",
+        "Write with live preview — export as HTML, PDF or DOCX."
+      ),
+    },
+    {
+      id: "audio-editor",
+      Icon: Music,
+      tile: "bg-gradient-to-br from-teal-500 to-cyan-600 shadow-teal-500/40",
+      title: t("aeTitle"),
+      desc: pick(
+        lang,
+        "ওয়েভফর্মে ট্রিম, ভলিউম ও ফেড — ভিডিও থেকেও অডিও বের করুন।",
+        "Trim, volume & fade on a waveform — extract audio from video too."
+      ),
+    },
+  ];
 
   return (
     <motion.section
@@ -17,9 +76,10 @@ export function EditorSpotlight() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, delay: 0.06 }}
       className="mt-8"
-      aria-label={t("edSpotAria")}
+      aria-label={t("edStudioTitle")}
     >
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+        {/* ── flagship PDF banner ─────────────────────────────────────────── */}
         <button
           type="button"
           onClick={() => openTool("pdf-editor")}
@@ -86,6 +146,37 @@ export function EditorSpotlight() {
             </div>
           </div>
         </button>
+
+        {/* ── studio grid: 4 more editors ─────────────────────────────────── */}
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {cards.map((c, i) => (
+            <motion.button
+              key={c.id}
+              type="button"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.12 + i * 0.06 }}
+              onClick={() => openTool(c.id)}
+              className="group fm-card flex items-start gap-4 rounded-2xl p-5 text-left outline-none transition-all hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+              aria-label={c.title}
+            >
+              <span
+                className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white shadow-lg transition-transform duration-300 group-hover:scale-110 ${c.tile}`}
+              >
+                <c.Icon className="h-6 w-6" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 font-bold text-emerald-950">
+                  {c.title}
+                  <ArrowUpRight className="h-4 w-4 text-emerald-600/70 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </span>
+                <span className="mt-1 block text-sm leading-relaxed text-emerald-900/60">
+                  {c.desc}
+                </span>
+              </span>
+            </motion.button>
+          ))}
+        </div>
       </div>
     </motion.section>
   );
