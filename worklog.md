@@ -402,3 +402,33 @@ Stage Summary:
 - PDF text editing now works the way users expect: open PDF → lines are clickable → click/double-click → type → original text disappears live → save is true object-level removal. Per-word PDFs (Word/Google Docs exports) fully supported.
 - Artifacts: pdf-editor.tsx (~2445 lines), .verify/rw* screenshots + rw-check scripts (repro PDF: make-realworld-pdf.ts)
 - Pushed c243729 → Vercel auto-deploy triggered
+
+---
+Task ID: 14
+Agent: main (Z.ai Code)
+Task: 60-day business platform roadmap (user: "পূর্ণাঙ্গভাবে একটা বিজনেস প্লাটফর্ম বানাতে চাচ্ছি... পরবর্তী ৬০ দিনে প্রতিদিন ডেভেলপমেন্ট, কোনো গ্যাপ থাকবে না") + Day 1 execution
+
+Work Log:
+- Audit: Task 13 (PDF text editing) already shipped/pushed (c243729); inventory = 40 tools + 5 editors; business gaps identified (no scanner/OCR/batch/accounts/payment/SEO)
+- Wrote docs/ROADMAP-60-DAYS.md: Day 0 audit, 6 guiding principles, daily rhythm (অডিট→নির্মাণ→যাচাই→শিপিং→লগিং), Definition of Done, 5 phases × day-by-day tables (Phase 1 product core D1-12, Phase 2 experience/trust D13-24, Phase 3 business foundation D25-38, Phase 4 growth D39-52, Phase 5 hardening/launch D53-60), KPI targets, risk register (owner keys for OAuth/payment flagged ahead of D26/D31)
+- Day 1 SHIPPED — ডকুমেন্ট স্ক্যানার (Bengali-market #1 pain: NID/দলিল/ফর্ম phone photos):
+  1) src/components/file-hub/scan-editor.tsx (new, ~700 lines): photo→clean scan pipeline = rotate → CSS-filter draw (brightness/contrast/grayscale/saturate) → single pixel pass with percentile auto-levels LUT (2–98%) + Otsu B&W threshold; presets রঙিন/ধূসর/সাদা-কালো/ম্যাজিক; অটো পরিষ্কার switch; ≤2000px downscale; EXIF-aware createImageBitmap with fallback
+  2) Exports: multi-page A4 PDF (portrait/landscape by image aspect, 18pt margin, JPEG 0.92 via pdf-lib) + JPG (single download / JSZip for multiple, Bengali filenames preserved)
+  3) UX: drag-drop + camera capture="environment" input + gallery picker, page nav arrows, rotate/move/delete, processed thumbnails strip (sticky bottom), 44px touch targets, aria labels/radiogroup/switch, bn/en + Bengali digits
+  4) Wired: registry (ScanLine icon, emerald gradient, EDITOR_IDS, keywords scan/স্ক্যান/nid/camscanner), page.tsx EDITOR_VIEWS, i18n +31 keys
+- E2E verified (agent-browser 1280×900 + 390×844, bn+en):
+  - Synthetic dark noisy rotated "document photos" (canvas-generated with Bengali text) → Magic preset turned them bright clean scans (screenshot scan1-magic.png)
+  - B&W preset: colorVar=0.00 (pure grayscale), bimodal 31.7% dark / 68.3% white — Otsu confirmed working
+  - Rotate: 1200×1600 → 1600×1200 → back; page delete ২/২→১/১; move-left reorder ২/৩→১/৩
+  - PDF export → blob captured via URL.createObjectURL patch → %PDF header + %%EOF → pdfjs ground truth: 2 pages, A4, 1 embedded JPEG/page
+  - BUG FOUND+FIXED: portrait photos were placed on landscape A4 (inverted condition) → now 595.3×841.9 portrait
+  - JPG single = valid JPEG (ffd8); ZIP path = PK magic with all 3 pages
+  - EN switch: "Document Scanner / Pages 1/3 / Download PDF"; mobile: scrollW=390=no overflow
+  - CONTRAST FIX: selected chip/badge text-emerald-200 invisible on light theme → emerald-700 dark:emerald-300 (verified computed color lab L≈44)
+- Gates: eslint 0 problems, tsc clean (src/), dev.log 0 non-200, home regression OK (footer + scanner card visible)
+
+Stage Summary:
+- 60-day business roadmap committed as the operating plan; every future session picks the next row from its tables and logs to worklog
+- Day 1 shipped: Document Scanner = 41st tool, full-screen editor #6 — flagship Bengali-market feature, all client-side
+- Lesson: verify EXPORT ORIENTATION with pdfjs page dims, not just byte structure — first export had inverted A4 logic that byte checks couldn't catch
+- Artifacts: docs/ROADMAP-60-DAYS.md, scan-editor.tsx, .verify/scan-*.png/pdf/b64 + seed-scanner.js

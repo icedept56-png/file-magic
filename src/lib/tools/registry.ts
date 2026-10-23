@@ -33,6 +33,7 @@ import {
   Paintbrush,
   Music,
   FilePenLine,
+  ScanLine,
 } from "lucide-react";
 
 import type { Category, ToolDef } from "./types";
@@ -65,6 +66,7 @@ export const EDITOR_IDS: readonly string[] = [
   "sheet-editor",
   "markdown-editor",
   "audio-editor",
+  "document-scan",
 ];
 
 export const TOOLS: ToolDef[] = [
@@ -522,6 +524,29 @@ export const TOOLS: ToolDef[] = [
   },
 
   // ─── DOCUMENT ───────────────────────────────────────────────────────────
+  {
+    id: "document-scan",
+    name: "ডকুমেন্ট স্ক্যানার",
+    nameEn: "Document Scanner",
+    desc: "ফোনের ছবিকে পরিষ্কার স্ক্যান কপি — অটো উজ্জ্বলতা, সাদা-কালো, মাল্টি-পেজ PDF",
+    descEn: "Turn phone photos into clean scans — auto levels, B&W, multi-page PDF",
+    keywords: ["scan", "scanner", "skyan", "camera", "photo", "document", "nid", "camscanner", "scan koro", "capture"],
+    category: "document",
+    icon: ScanLine,
+    gradient: "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/40",
+    glow: "rgba(16,185,129,0.35)",
+    files: { accept: "image/*,.png,.jpg,.jpeg,.webp,.bmp", multiple: true },
+    inputMode: "file",
+    hint: "ছবি ফাইল (একাধিক পাতা দেওয়া যাবে)",
+    hintEn: "Image files (multiple pages allowed)",
+    actionLabel: "স্ক্যানার খুলুন",
+    actionLabelEn: "Open scanner",
+    options: [],
+    process: async () => {
+      // the scanner runs in its own full-screen view — never in the workspace
+      throw new Error("স্ক্যানারের নিজস্ব স্ক্রিন আছে — টুলটি খুলুন।");
+    },
+  },
   {
     id: "docx-to-pdf",
     name: "ওয়ার্ড → পিডিএফ",

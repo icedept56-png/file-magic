@@ -19,6 +19,7 @@ import { ImageEditor } from "@/components/file-hub/image-editor";
 import { SheetEditor } from "@/components/file-hub/sheet-editor";
 import { MarkdownEditor } from "@/components/file-hub/markdown-editor";
 import { AudioEditor } from "@/components/file-hub/audio-editor";
+import { ScanEditor } from "@/components/file-hub/scan-editor";
 import { Footer } from "@/components/file-hub/footer";
 import { HistorySync } from "@/components/file-hub/history-sync";
 
@@ -29,6 +30,7 @@ const EDITOR_VIEWS: Record<string, React.ComponentType> = {
   "sheet-editor": SheetEditor,
   "markdown-editor": MarkdownEditor,
   "audio-editor": AudioEditor,
+  "document-scan": ScanEditor,
 };
 
 export default function Home() {
