@@ -372,3 +372,33 @@ Stage Summary:
 - RELEASE CONFIRMED AFTER SESSION RESTORE: every deliverable of the advanced-editing scope is live on origin/main (→ Vercel auto-deploy already triggered): (1) PDF object-level TRUE text edit/delete — click the PDF's real text, edit in place or delete natively, byte+pdfjs-verified no whiteout; redact, shapes, signature, page duplicate/reorder, font size/bold controls; (2) Image editor (crop/rotate/flip/filters/presets/draw/text/undo/export); (3) Spreadsheet editor (multi-sheet grid, row/col ops, XLSX+CSV, Bengali-safe UTF-8); (4) Markdown editor (live GFM preview, MD/HTML/PDF/DOCX export); (5) Audio editor (waveform select/trim/volume/fades, WAV export)
 - 36 tools total, 5 full-screen editors, bn/en complete; repo = github.com/icedept56-png/file-magic
 - Verification lesson: naive byte-scan of PDF streams misleads (object streams + binary false positives) — always confirm with pdfjs text extraction as ground truth
+
+---
+Task ID: 13
+Agent: main (Z.ai Code)
+Task: "I can't edit text in PDF editor" — root-cause fix + full super-power upgrade of native text editing (user: quality > time, user-friendly, perfection)
+
+Work Log:
+- REPRODUCED the real-world failure: built a Word-style PDF (per-WORD text placement) → pdf.js emits 21 fragments for 4 lines → old editor created 21 tiny shard-boxes → clicking gave useless one-word edits (this is why users "can't edit text")
+- Root causes fixed in pdf-editor.tsx (+459/−104):
+  1) LINE CLUSTERING: scan effect groups fragments by coinciding baselines (tol 0.42×fontH), reconstructs spaces via gap detection (0.22×fontH) + whitespace runs, splits at wide gaps (>3.5×fontH) so table columns/page numbers stay separate; NativeBox now carries idxs[] + parts[] (tight per-item rects); whitespace runs kept (they are real operators)
+  2) LIVE WYSIWYG: new preview engine — computeNativeRects (shared by export+preview) → runPreview re-loads pristine bytes, runs removeTextInRects on ALL dirty pages, saves, loads a fresh pdfjs doc (previewDocRef), render effect renders from it → original text visibly vanishes after every commit; >12MB files + any failure → pixel-cover fallback in render effect (bg-sampled fillRect); coalesced via promise chain + 90ms debounce + "প্রিভিউ আপডেট হচ্ছে…" badge
+  3) AUTO-ENTER editText on open of a text-bearing PDF (autoEditRef, once per doc) — no tool-hunting
+  4) DOUBLE-CLICK edits any text even with select tool (hit-test padded ±2pt); overlay select-none + preventDefault kills stray page-wide selection (editables keep select-text)
+  5) OPAQUE UNDERLAY: bg color sampled from canvas beside the line (samplePageBg, 4 candidate points) hides original glyphs while typing / until preview lands — no double-vision
+  6) PRECISION: export + preview use per-item parts rects (was union bbox); removedNative resolved against per-page+rotation scan cache (key `${page}:${rot}`) with any-rot fallback — fixes latent rotate-after-delete bug; pageSizeRef (unrotated dims per page, incl. pages 41+) drives frame math
+  7) Undo re-syncs preview; deleteElement + onBlur commits schedule preview rebuild
+- E2E verified (agent-browser, real-world per-word PDF):
+  - Upload → 4 whole-line dashed boxes (not 21 shards) + auto editText + Bengali hint chip
+  - Click line → whole line pre-filled + select-all, underlay hides original, font slider + B appear
+  - Type "Payment due within 15 days only" → Escape → canvas re-rendered: original line GONE on screen, others intact (rw3 screenshot)
+  - Double-click "Total amount due: $1,250.00" → Ctrl+A+Delete+Escape → line VANISHES from canvas (rw5)
+  - Save → pdfjs ground truth: "invoice" GONE, "Total amount" GONE, title/contact intact, replacement present as embedded raster (2 image XObjects, %PDF-1.7, %%EOF, 10971B)
+  - English mode (Edit text/Safe PDF toolbar) + mobile 390px toolbar wrap — clean
+- Fixed mid-flight: JSX attribute string can't use \" escapes (Tailwind arbitrary variant switched to single quotes) — caught by tsc, re-verified clean
+- Gates: tsc 0 errors (src/), eslint 0, dev.log all 200s, console clean
+
+Stage Summary:
+- PDF text editing now works the way users expect: open PDF → lines are clickable → click/double-click → type → original text disappears live → save is true object-level removal. Per-word PDFs (Word/Google Docs exports) fully supported.
+- Artifacts: pdf-editor.tsx (~2445 lines), .verify/rw* screenshots + rw-check scripts (repro PDF: make-realworld-pdf.ts)
+- Pushed c243729 → Vercel auto-deploy triggered
