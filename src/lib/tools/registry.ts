@@ -36,6 +36,7 @@ import {
   FilePenLine,
   ScanLine,
   ScanText,
+  LayoutGrid,
 } from "lucide-react";
 
 import type { Category, ToolDef } from "./types";
@@ -64,6 +65,7 @@ const AUDIO_ACCEPT = "audio/*,video/*,.mp3,.wav,.ogg,.m4a,.flac,.mp4,.webm";
 /** tools that open their own full-screen editor view instead of the workspace */
 export const EDITOR_IDS: readonly string[] = [
   "pdf-editor",
+  "page-manager",
   "image-editor",
   "sheet-editor",
   "markdown-editor",
@@ -96,6 +98,28 @@ export const TOOLS: ToolDef[] = [
     process: async () => {
       // the editor runs in its own full-screen canvas view — never in the workspace
       throw new Error("পিডিএফ এডিটরের নিজস্ব ক্যানভাস আছে — টুলটি খুলুন।");
+    },
+  },
+  {
+    id: "page-manager",
+    name: "পিডিএফ পেজ ম্যানেজার",
+    nameEn: "PDF Page Manager",
+    desc: "ভিজ্যুয়াল থাম্বনেইলে পেজ সাজান — ড্র্যাগে ক্রম বদল, ঘোরান, মুছুন, বাছাই করা পেজ আলাদা করুন, খালি/ছবি পাতা যোগ করুন",
+    descEn: "Arrange pages visually — drag to reorder, rotate, delete, extract selected pages, add blank/image pages",
+    keywords: ["pages", "organize", "arrange", "reorder", "extract", "blank", "thumbnail", "পেজ", "সাজান"],
+    category: "pdf",
+    icon: LayoutGrid,
+    gradient: "bg-gradient-to-br from-rose-500 to-red-600 shadow-rose-500/40",
+    glow: "rgba(244,63,94,0.35)",
+    files: { accept: PDF_ACCEPT, multiple: false },
+    inputMode: "file",
+    hint: "পিডিএফ ফাইল",
+    hintEn: "PDF file",
+    actionLabel: "ম্যানেজার খুলুন",
+    actionLabelEn: "Open manager",
+    options: [],
+    process: async () => {
+      throw new Error("পেজ ম্যানেজারের নিজস্ব ভিউ আছে — টুলটি খুলুন।");
     },
   },
   {

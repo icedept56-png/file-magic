@@ -15,6 +15,7 @@ import { ToolGrid } from "@/components/file-hub/tool-grid";
 import { Features } from "@/components/file-hub/features";
 import { Workspace } from "@/components/file-hub/workspace";
 import { PdfEditor } from "@/components/file-hub/pdf-editor";
+import { PageManager } from "@/components/file-hub/page-manager";
 import { ImageEditor } from "@/components/file-hub/image-editor";
 import { SheetEditor } from "@/components/file-hub/sheet-editor";
 import { MarkdownEditor } from "@/components/file-hub/markdown-editor";
@@ -28,6 +29,7 @@ import { HistorySync } from "@/components/file-hub/history-sync";
 /** editor tool id → its full-screen component */
 const EDITOR_VIEWS: Record<string, React.ComponentType> = {
   "pdf-editor": PdfEditor,
+  "page-manager": PageManager,
   "image-editor": ImageEditor,
   "sheet-editor": SheetEditor,
   "markdown-editor": MarkdownEditor,
