@@ -21,6 +21,7 @@ import { MarkdownEditor } from "@/components/file-hub/markdown-editor";
 import { AudioEditor } from "@/components/file-hub/audio-editor";
 import { ScanEditor } from "@/components/file-hub/scan-editor";
 import { OcrStudio } from "@/components/file-hub/ocr-studio";
+import { BatchStudio } from "@/components/file-hub/batch-studio";
 import { Footer } from "@/components/file-hub/footer";
 import { HistorySync } from "@/components/file-hub/history-sync";
 
@@ -33,6 +34,7 @@ const EDITOR_VIEWS: Record<string, React.ComponentType> = {
   "audio-editor": AudioEditor,
   "document-scan": ScanEditor,
   "ocr-studio": OcrStudio,
+  "batch-studio": BatchStudio,
 };
 
 export default function Home() {

@@ -22,6 +22,7 @@ import {
   PenLine,
   Hash,
   Code,
+  Layers,
   Table2,
   Table,
   Braces,
@@ -69,6 +70,7 @@ export const EDITOR_IDS: readonly string[] = [
   "audio-editor",
   "document-scan",
   "ocr-studio",
+  "batch-studio",
 ];
 
 export const TOOLS: ToolDef[] = [
@@ -346,6 +348,29 @@ export const TOOLS: ToolDef[] = [
   },
 
   // ─── IMAGE ──────────────────────────────────────────────────────────────
+  {
+    id: "batch-studio",
+    name: "ব্যাচ মোড — একসাথে অনেক ছবি",
+    nameEn: "Batch Mode — many images at once",
+    desc: "অনেক ছবিতে একই কাজ — কম্প্রেস, কনভার্ট, রিসাইজ, ঘোরানো, সাদা-কালো — তারপর এক ZIP",
+    descEn: "One action across many images — compress, convert, resize, rotate, grayscale — then one ZIP",
+    keywords: ["batch", "bulk", "multiple", "many", "ব্যাচ", "একসাথে", "গুচ্ছ", "bulk compress", "batch resize", "batch convert", "zip", "২০টা ছবি"],
+    category: "image",
+    icon: Layers,
+    gradient: "bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-500/40",
+    glow: "rgba(245,158,11,0.35)",
+    files: { accept: "image/*,.png,.jpg,.jpeg,.webp,.bmp,.gif", multiple: true },
+    inputMode: "file",
+    hint: "অনেকগুলো ছবি একসাথে (সর্বোচ্চ ৬০)",
+    hintEn: "Many images at once (up to 60)",
+    actionLabel: "ব্যাচ স্টুডিও খুলুন",
+    actionLabelEn: "Open Batch Studio",
+    options: [],
+    process: async () => {
+      // Batch studio runs in its own full-screen view — never in the workspace
+      throw new Error("ব্যাচ স্টুডিওর নিজস্ব স্ক্রিন আছে — টুলটি খুলুন।");
+    },
+  },
   {
     id: "image-convert",
     name: "ইমেজ কনভার্টার",

@@ -459,3 +459,30 @@ Stage Summary:
 - Bengali OCR accuracy on clean documents is excellent (tessdata_fast 4.0.0 ben); noisy photos benefit from running through the scanner first
 - Lesson: when a click triggers React re-renders that swap DOM (handoff auto-load), agent-browser find-by-text can hit a stale node — re-snapshot and click by fresh ref
 - Artifacts: ocr-studio.tsx, public/tesseract/*, public/tessdata/*, .verify/seed-ocr.js + ocr-export.docx + ocr-mobile.png
+
+---
+Task ID: 16
+Agent: main (Z.ai Code)
+Task: Day 3 (60-day roadmap) — ব্যাচ মোড / Batch Studio: many files → one action → per-file status → single ZIP download
+
+Work Log:
+- Pre-audit (done the day before): generic workspace already offers "Download all (ZIP)" for multi-output tools; the REAL gap = no per-file status, no fault isolation (one corrupt file throws → whole batch lost), no retry, no dedicated bulk screen
+- Built src/components/file-hub/batch-studio.tsx (~1000 lines, editor view #8): 5 canvas ops — কম্প্রেস (quality slider 10–95, PNG→WebP re-encode), ফরম্যাট বদল (JPG/PNG/WebP, white-base for JPEG transparency), রিসাইজ (max long edge, never upscales, aspect kept), ঘোরান (90/180/270, dims swap), সাদা-কালো (ctx.filter grayscale); EXIF-safe createImageBitmap with fallback; sequential per-file run with status icons (queued/running/done✓/failed); one corrupt file fails ALONE and the rest of the batch survives; "শুধু ব্যর্থগুলো আবার চালান" retries only failed jobs (auto-runs after state commit); Stop button cancels mid-run keeping finished outputs; settings change resets results to queued (phase machine idle→running→done)
+- Intake: images only (mime OR extension check, skipped counted in toast), cap 60 files with warning, 96px JPEG thumbnails generated with concurrency 8 (bounded memory, big photos never decoded for list rendering), thumb URL revocation on remove/clear/unmount (incl. race when row removed before its thumb renders)
+- Output: per-file rows (thumb, name, size→size), summary strip (N সফল, M ব্যর্থ, saved% badge), single-file download buttons + "সব ডাউনলোড (ZIP)" via JSZip with name-collision dedupe → file-magic-batch-{op}.zip
+- Wired: registry entry batch-studio (Layers icon, amber→orange, keywords batch/ব্যাচ/একসাথে/bulk…) as FIRST image tool + EDITOR_IDS + page.tsx EDITOR_VIEWS + i18n +51 bs* keys (bn/en); image category now ৭, TOOL_COUNT ৩৯
+- E2E verified (agent-browser, real runs on 21 synthetic files = 20 valid JPEGs 600×400 + 1 text-file-disguised-as-.jpg):
+  1) Compress run → summary "২০ সফল, ১ ব্যর্থ" + "৩৮% ছোট"; corrupt row shows localized "ছবিটি পড়া যায়নি" error
+  2) ZIP blob captured via createObjectURL patch → PK magic, EOCD entry count = 20, local headers = 20 (corrupt correctly excluded — double-counted via central directory, not naive scan)
+  3) Retry-failed → re-ran only the 1 corrupt (still fails, as it should) while 20 done results stayed intact
+  4) Resize 320px → createImageBitmap ground truth 320×213 (aspect 1.5 preserved); Rotate 90° → 400×600 (dims swapped); Grayscale → 5-point pixel sample maxRGBSpread = 0 (pure R=G=B); Convert→WebP → mime image/webp + RIFF magic + name photo-01.webp
+  5) Settings change after run → results reset, button returns to "সব ফাইলে চালান"; EN mode ("20 succeeded, 1 failed", "Run again", "Download all (ZIP)"); mobile 390px scrollW=390 (no overflow)
+  6) Home regression: batch card visible, hero stat and sidebar category counts consistent (৩৯), footer at document end on long page
+- COUNT CORRECTION for the record: worklog entries for Day 1/2 said scanner = "41st tool", OCR = "42nd" — actual registry math is TOOL_COUNT: 37 before scanner, 38 after OCR, 39 after batch. The app was always internally consistent (hero stat = sidebar sum = TOOL_COUNT); the old numbering was a logging error, product unaffected.
+- Gates: eslint 0 problems, tsc clean (src/), dev.log all 200s (7× GET / 200 + manifest), no console errors during runs
+
+Stage Summary:
+- Day 3 shipped: ব্যাচ মোড = tool #39 (TOOL_COUNT), full-screen editor #8 — "২০টা ছবি কম্প্রেস করতে ২০ বার" pain is dead: one drop, one action, one ZIP, corrupt files never take the batch down
+- Fault isolation + retry-failed is the pattern future batch surfaces (PDFs, docs) should reuse; processFile(file, op, settings) is extractor-ready for Day 10 format blitz
+- Lesson: MultiEdit is NOT atomic in this toolchain — a failing edit leaves earlier edits applied; always verify with git diff after MultiEdit. Also verify counts via the real module (bun -e import) instead of trusting prose.
+- Artifacts: batch-studio.tsx, .verify/batch-compress-result.png + batch-mobile.png
