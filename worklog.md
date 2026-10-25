@@ -486,3 +486,22 @@ Stage Summary:
 - Fault isolation + retry-failed is the pattern future batch surfaces (PDFs, docs) should reuse; processFile(file, op, settings) is extractor-ready for Day 10 format blitz
 - Lesson: MultiEdit is NOT atomic in this toolchain — a failing edit leaves earlier edits applied; always verify with git diff after MultiEdit. Also verify counts via the real module (bun -e import) instead of trusting prose.
 - Artifacts: batch-studio.tsx, .verify/batch-compress-result.png + batch-mobile.png
+
+---
+Task ID: 17
+Agent: main (Z.ai Code)
+Task: Day 4 (60-day roadmap) — PDF পেজ ম্যানেজার ২.০: visual page workspace for PDFs
+
+Work Log:
+- Built src/components/file-hub/page-manager.tsx (editor view #9, tool id page-manager): pdf.js renders every page as a 240px JPEG thumbnail (object-URLs, revoked on remove/clear/unmount, pool of 4, cap 200 pages, base rotation captured from page.rotate); unified PageEntry model = pdf page | blank A4 | image page, each with user rotation 0/90/180/270
+- Ops: click/space select (role=checkbox cards), HTML5 drag-reorder + per-card ↑↓ arrows (touch/keyboard safe), delete (per-card X + toolbar), rotate L/R (selection), extract selection → new PDF (immediate download), insert blank A4 / multiple image pages after last selection; export rebuilds via pdf-lib copyPages in visible order with setRotation(base+user), blank pages, image pages baked client-side (canvas rotate → JPEG → A4 fit-center white)
+- Label fix caught during E2E: pmDelete text clashed with pmSelectNone ("বাছাই মুছুন") → delete is now "বাছাই মুছে ফেলুন"
+- Wired: registry entry (LayoutGrid icon, rose gradient, FIRST pdf tools block) + EDITOR_IDS + page.tsx EDITOR_VIEWS + i18n +33 pm* keys (bn/en); PDF category now ১২, TOOL_COUNT ৪০
+- E2E (agent-browser, real runs): 5-page seeded PDF (page 4 landscape) → thumbs all naturalWidth>0; select+rotate×2 → transform rotate(180deg); move-up reorder; blank+image page → 7 cards; EXTRACT (pages 1,2) → captured blob via createObjectURL patch → pdfjs ground truth: 2 pages, texts "1","2", page-2 rot=180; SAVE → 7 pages exact order [1,3,2,4°landscape,5,blankA4,imageA4] with rot=180 on page 3 and landscape 842×595 preserved on page 4; per-card delete 7→6; EN mode ("PDF Page Manager", "Save (PDF)", "No uploads"); mobile 390px scrollWidth=390; home shows the new card, PDF category ১২
+- Gates: eslint 0, tsc clean (src/), dev.log 200s, console clean
+- Test-intake lesson (already known, re-confirmed): seed files must go to the input selected by accept attribute — inputs[last] hit the image input first
+
+Stage Summary:
+- Day 4 shipped: "PDF-এর পেজ সাজাতে দেখতে দেখতে সাজানোর সুবিধা নেই" is dead — visual grid, drag/arrows, rotate, extract, blank/image inserts, one-click rebuild
+- PageEntry model is a plain array → ready for Day 7 unified undo/redo wiring
+- Artifacts: page-manager.tsx, .verify/{seed-pm.js,verify-pm.js,pm-test.pdf,pm-extracted.pdf,pm-arranged.pdf,pm-mobile.png}
