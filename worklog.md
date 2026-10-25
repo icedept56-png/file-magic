@@ -505,3 +505,22 @@ Stage Summary:
 - Day 4 shipped: "PDF-এর পেজ সাজাতে দেখতে দেখতে সাজানোর সুবিধা নেই" is dead — visual grid, drag/arrows, rotate, extract, blank/image inserts, one-click rebuild
 - PageEntry model is a plain array → ready for Day 7 unified undo/redo wiring
 - Artifacts: page-manager.tsx, .verify/{seed-pm.js,verify-pm.js,pm-test.pdf,pm-extracted.pdf,pm-arranged.pdf,pm-mobile.png}
+
+---
+Task ID: 18
+Agent: main (Z.ai Code)
+Task: Day 5 (60-day roadmap) — কম্প্রেশন ২.০ / Compression Studio: live slider + size prediction + before/after compare
+
+Work Log:
+- Built src/components/file-hub/compression-studio.tsx (editor view #10, tool id compression-studio): drop ≤30 images → live preview row auto-selected; quality slider (5–95) + output format (auto/jpeg/webp) + optional max edge (0=original); EVERY settings change triggers a debounced (250ms) REAL re-encode of the preview image → predicted output size + savings % (not an estimate formula — actual canvas encode)
+- Before/after compare pane: after-image full, before-image clipped via clipPath inset, draggable divider (pointer events) + keyboard (role=slider, ArrowLeft/Right, aria-valuenow); sizes shown on both sides; −N% ছোট / +N% বড় chip (Bengali digits)
+- Run all: sequential fault-isolated compress (same auto rules as batch studio: jpeg→jpeg, others→webp, jpeg white-base), per-row before→after sizes + saved %, summary badge, stop button, single ZIP (JSZip, collision-safe names) + per-file downloads; settings change after a run resets results to queued (ZIP hidden until re-run) — mirrors batch studio semantics
+- Wired: registry entry (Gauge icon, fuchsia→purple, after batch-studio) + EDITOR_IDS + page.tsx EDITOR_VIEWS + i18n +24 cs* keys; image category now ৮, TOOL_COUNT ৪১
+- eslint ignores += .verify/** (verify scripts use require()); Slider thumbs lack forwarded aria-label (noted → Day 8 a11y pass will fix)
+- E2E (agent-browser, real runs on 3 seeded noisy 1200×900 JPEGs ~120KB each): live prediction 120→77.8KB @q75 (−৩৫%), slider keyboard 75→55 → 60.9KB (−৫০%); divider keys 50→46 + clipPath verified; Run all → 3 done rows "120 KB → 60.9 KB · −৪৯%" etc, summary −৪৯% ছোট; ZIP captured via createObjectURL patch → 171KB, 3 local-file headers; settings change → ZIP gone + run button back; EN (Compression Studio / Compress all / Before ·); mobile 390px scrollWidth=390; home image category ৮; console clean after reload (stale HMR error from a transient duplicate import was the only console entry), dev.log all 200
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 5 shipped: "কত ছোট হবে জানি না, কোয়ালিটি নষ্ট হয়ে যায়" is dead — users SEE the real predicted size and compare quality visually before committing the whole batch
+- Lesson: Radix Slider doesn't forward aria-label to the thumb — a11y wiring for sliders goes through Thumb-level props (Day 8)
+- Artifacts: compression-studio.tsx, .verify/{cs-mobile.png}
