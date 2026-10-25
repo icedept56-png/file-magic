@@ -586,3 +586,23 @@ Stage Summary:
 - Day 8 shipped: power users get /, Ctrl+K, ?, Esc + a discoverable shortcut list; screen readers get named sliders and a skip link
 - Design decision: Esc is dialog-first (never fights Radix); text fields keep native typing/undo semantics everywhere
 - Artifacts: shortcut-layer.tsx, ui/slider.tsx thumbLabel, .verify/sk-dialog.png
+
+---
+Task ID: 22
+Agent: main (Z.ai Code)
+Task: Day 9 (60-day roadmap) — বড় ফাইল পারফরম্যান্স: heavy pdf-lib ops in a Web Worker
+
+Work Log:
+- Extracted ONE pure, DOM-free implementation of the 6 heavy pdf-lib ops → src/lib/workers/pdf-core.ts (merge, split range/each, compress keep-smaller, rotate, watermark embed/draw/save, delete-pages): errors thrown as FmError{key,args} (localization KEYS, not text) and progress as (pct,key,args) so the worker never imports the i18n/store chain; worker-safe parseRangesRaw twin of helpers.parsePageRanges
+- src/lib/workers/pdf-worker.ts: module worker — protocol {id,payload} → progress/done/error messages, ArrayBuffers transferred back (zero-copy)
+- src/lib/workers/client.ts: lazy singleton worker + runPdf() — functional errors re-thrown via err(key,...args) (worker stays healthy), worker-level crashes throw PdfWorkerCrash; processors' runPdfSafe() re-reads the Files and reruns the identical pdf-core on the main thread (runPdfOnMain) — graceful degradation, no behavior change; pdfWorkerState.__fmPdfWorkerMode exposes "worker"|"main" for diagnostics
+- processors/pdf.ts: mergePdf/splitPdf/compressPdf/rotatePdf/watermarkPdf/deletePdfPages are now thin wrappers (same names, same registry bindings, same output names); watermark canvas raster stays on main (DOM), png buffer transferred; pdf.js-based tools untouched (pdf.js already workers internally)
+- Memory control: buffers transferred per op, File re-read per op (no retained copies); large-file banner in workspace (>25MB → "বড় ফাইল শনাক্ত হয়েছে — কাজটি ব্যাকগ্রাউন্ডে চলবে") + messages.unexpected fallback key
+- E2E (agent-browser, real runs): merge 2 PDFs → merged.pdf 10 pages (pdfjs ground truth), mode="worker"; rotate ✓, split-range(2,4) ✓, delete-pages ✓, compress ✓ — ALL mode="worker"; corrupt PDF → localized "পিডিএফটি পড়া যায়নি..." error surfaced from worker {key,args} and worker REMAINED healthy for the next op; >25MB file → banner shown on পিডিএফ কম্প্রেস; console clean, dev.log 200s
+- INCIDENT (environment, not app): generating a large test PDF with bun+pdf-lib embedJpg loops pushed RSS to 2.2GB → the kernel OOM-killed the dev server mid-verification (dmesg evidence). Restarted cleanly; big-file artifacts dropped in favor of size-only banner check + small-file correctness runs
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 9 shipped: pdf-lib heavy lifting now off the main thread with zero-copy transfers and bulletproof fallback — the "৫০MB PDF-এ ব্রাউজার আটকে যায়" pain has its structural fix; UI thread stays free for progress/spinners
+- Lesson: bun + pdf-lib embedJpg of many large JPEGs is a memory bomb — never run it beside the dev server; verify big-file paths with size-only fakes
+- Artifacts: workers/{pdf-core,pdf-worker,client}.ts, .verify/w9-merged.pdf
