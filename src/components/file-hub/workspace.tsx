@@ -14,6 +14,7 @@ import {
   FileText,
   FileType2,
   ImageIcon,
+  Info,
   Loader2,
   Music,
   Package,
@@ -555,6 +556,14 @@ export function Workspace() {
             <AlertTitle>{t("errTitle")}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
+        )}
+
+        {/* large-file heads-up (Day 9) — heavy ops run in a Web Worker */}
+        {!busy && files.some((f) => f.size > 25 * 1024 * 1024) && (
+          <p className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+            <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {t("lfLarge")}
+          </p>
         )}
 
         {/* action */}

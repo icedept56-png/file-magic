@@ -515,6 +515,9 @@ const STR = {
   skSelect: ["পেজ/ফাইল বাছাই", "Select page/file"],
   skTab: ["ঘুরে দেখুন", "Navigate"],
 
+  // large-file performance (Day 9 — 60-day roadmap)
+  lfLarge: ["বড় ফাইল শনাক্ত হয়েছে — কাজটি ব্যাকগ্রাউন্ডে চলবে, একটু সময় লাগতে পারে", "Large file detected — this runs in the background and may take a moment"],
+
   // footer
   footerLine: [
     "আপনার ফাইল আপনার ডিভাইসেই থাকে। কোনো আপলোড নেই, কোনো ট্র্যাকিং নেই।",

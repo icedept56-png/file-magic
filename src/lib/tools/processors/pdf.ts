@@ -1,10 +1,13 @@
 /** PDF processors — pdf-lib + pdfjs-dist, all client-side */
 import type { OutputFile, ToolOptions, ProgressFn } from "../types";
-import { readArrayBuffer, stripExt, parsePageRanges, canvasToBlob, loadImageBitmap } from "../helpers";
+import { readArrayBuffer, stripExt, canvasToBlob, loadImageBitmap } from "../helpers";
 import { err, pLabel } from "../messages";
+import { runPdf, runPdfOnMain, PdfWorkerCrash } from "@/lib/workers/client";
+import type { PdfOpPayload } from "@/lib/workers/pdf-core";
 
 /** pdf-lib document type (the class has a private constructor → InstanceType is unusable) */
 type PdfDoc = Awaited<ReturnType<(typeof import("pdf-lib").PDFDocument)["load"]>>;
+void (0 as unknown as PdfDoc | null); // type-only keepalive (ops moved to the worker)
 
 /** pdfjs PDFDocumentProxy type, resolved purely through type queries (no runtime import) */
 type PdfJsDoc = Awaited<ReturnType<typeof import("pdfjs-dist").getDocument>["promise"]>;
@@ -16,10 +19,39 @@ async function getPdfjs() {
   return pdfjs;
 }
 
-function pdfBlob(bytes: Uint8Array): Blob {
+function pdfBlob(bytes: Uint8Array | ArrayBuffer): Blob {
   // pdf-lib yields Uint8Array<ArrayBufferLike>; BlobPart wants an explicit ArrayBuffer view
   return new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
 }
+
+/* ─── Day 9: heavy pdf-lib ops run in the Web Worker ────────────────────
+   runPdf transfers the buffers; if the WORKER ITSELF crashes (never a
+   functional error), the files are re-read and the identical pdf-core
+   implementation runs on the main thread — no behavior change, just
+   less responsiveness. Functional errors (corrupt PDF, bad range) keep
+   their localized messages because the worker only sends {key,args}. */
+
+async function runPdfSafe(
+  files: File[],
+  build: (buffers: ArrayBuffer[]) => PdfOpPayload,
+  onProgress: ProgressFn
+): Promise<{ name: string; bytes: ArrayBuffer }[]> {
+  const buffers = await Promise.all(files.map((f) => readArrayBuffer(f)));
+  try {
+    const { files: out } = await runPdf(build(buffers), onProgress);
+    return out;
+  } catch (e) {
+    if (e instanceof PdfWorkerCrash) {
+      const fresh = await Promise.all(files.map((f) => readArrayBuffer(f)));
+      const { files: out } = await runPdfOnMain(build(fresh), onProgress);
+      return out;
+    }
+    throw e;
+  }
+}
+
+const toOutput = (out: { name: string; bytes: ArrayBuffer }[]): OutputFile[] =>
+  out.map((f) => ({ name: f.name, blob: pdfBlob(f.bytes) }));
 
 function loadFailError(): Error {
   return err("pdfLoadFail");
@@ -33,24 +65,9 @@ export async function mergePdf(
   onProgress: ProgressFn
 ): Promise<OutputFile[]> {
   if (files.length < 2) throw err("mergeNeed2");
-  const { PDFDocument } = await import("pdf-lib");
-  const merged = await PDFDocument.create();
-  for (let i = 0; i < files.length; i++) {
-    onProgress(Math.round((i / files.length) * 90), pLabel("pFile", i + 1, files.length));
-    try {
-      const src = await PDFDocument.load(await readArrayBuffer(files[i]), {
-        ignoreEncryption: true,
-      });
-      const pages = await merged.copyPages(src, src.getPageIndices());
-      pages.forEach((p) => merged.addPage(p));
-    } catch {
-      throw err("pdfOneCorrupt", files[i].name);
-    }
-  }
-  onProgress(95, pLabel("pSaving"));
-  const bytes = await merged.save();
+  const out = await runPdfSafe(files, (buffers) => ({ op: "merge", buffers }), onProgress);
   onProgress(100, pLabel("pDone"));
-  return [{ name: "merged.pdf", blob: pdfBlob(bytes) }];
+  return toOutput(out);
 }
 
 /* ─── 2. Split ─────────────────────────────────────────────────────────── */
@@ -62,41 +79,17 @@ export async function splitPdf(
 ): Promise<OutputFile[]> {
   const file = files[0];
   if (!file) throw err("givePdf");
-  const mode = String(opts.mode || "range");
-  const { PDFDocument } = await import("pdf-lib");
-
-  let src: PdfDoc;
-  try {
-    src = await PDFDocument.load(await readArrayBuffer(file), { ignoreEncryption: true });
-  } catch {
-    throw loadFailError();
-  }
-  const count = src.getPageCount();
+  const mode = String(opts.mode || "range") === "each" ? "each" : "range";
+  const pages = mode === "range" ? String(opts.pages ?? "") : "";
+  if (mode === "range" && !pages.trim()) throw err("noValidPages");
   const base = stripExt(file.name);
-
-  if (mode === "each") {
-    if (count > 200) throw err("tooManyPages");
-    const out: OutputFile[] = [];
-    for (let i = 0; i < count; i++) {
-      onProgress(Math.round((i / count) * 95), pLabel("pPage", i + 1, count));
-      const doc = await PDFDocument.create();
-      const [page] = await doc.copyPages(src, [i]);
-      doc.addPage(page);
-      out.push({ name: `page-${i + 1}.pdf`, blob: pdfBlob(await doc.save()) });
-    }
-    onProgress(100, pLabel("pDone"));
-    return out;
-  }
-
-  // range mode
-  const picked = parsePageRanges(String(opts.pages ?? ""), count);
-  const doc = await PDFDocument.create();
-  const pages = await doc.copyPages(src, picked.map((p) => p - 1));
-  pages.forEach((p) => doc.addPage(p));
-  onProgress(90, pLabel("pSaving"));
-  const bytes = await doc.save();
+  const out = await runPdfSafe(
+    [file],
+    (buffers) => ({ op: "split", buffer: buffers[0], mode, pages, base }),
+    onProgress
+  );
   onProgress(100, pLabel("pDone"));
-  return [{ name: `${base}-split.pdf`, blob: pdfBlob(bytes) }];
+  return toOutput(out);
 }
 
 /* ─── 3. Compress ──────────────────────────────────────────────────────── */
@@ -108,21 +101,14 @@ export async function compressPdf(
 ): Promise<OutputFile[]> {
   const file = files[0];
   if (!file) throw err("givePdf");
-  const { PDFDocument } = await import("pdf-lib");
-  onProgress(30, pLabel("pOpening"));
-  let doc: PdfDoc;
-  try {
-    doc = await PDFDocument.load(await readArrayBuffer(file), { ignoreEncryption: true });
-  } catch {
-    throw loadFailError();
-  }
-  onProgress(60, pLabel("pCompressing"));
-  const bytes = await doc.save({ useObjectStreams: true });
-  // never hand back a file that is BIGGER than the original — keep the smaller one
-  const original = new Uint8Array(await readArrayBuffer(file));
-  const final = bytes.length < original.length ? bytes : original;
+  const base = stripExt(file.name);
+  const out = await runPdfSafe(
+    [file],
+    (buffers) => ({ op: "compress", buffer: buffers[0], base }),
+    onProgress
+  );
   onProgress(100, pLabel("pDone"));
-  return [{ name: `${stripExt(file.name)}-compressed.pdf`, blob: pdfBlob(final) }];
+  return toOutput(out);
 }
 
 /* ─── 4. PDF → Images ──────────────────────────────────────────────────── */
@@ -266,22 +252,14 @@ export async function rotatePdf(
   const file = files[0];
   if (!file) throw err("givePdf");
   const angle = Number(opts.angle) || 90;
-  const { PDFDocument, degrees } = await import("pdf-lib");
-  onProgress(25, pLabel("pOpening"));
-  let doc: PdfDoc;
-  try {
-    doc = await PDFDocument.load(await readArrayBuffer(file), { ignoreEncryption: true });
-  } catch {
-    throw loadFailError();
-  }
-  onProgress(55, pLabel("pRotating"));
-  doc.getPages().forEach((page) => {
-    page.setRotation(degrees((page.getRotation().angle + angle) % 360));
-  });
-  onProgress(85, pLabel("pSaving"));
-  const bytes = await doc.save();
+  const base = stripExt(file.name);
+  const out = await runPdfSafe(
+    [file],
+    (buffers) => ({ op: "rotate", buffer: buffers[0], angle, base }),
+    onProgress
+  );
   onProgress(100, pLabel("pDone"));
-  return [{ name: `${stripExt(file.name)}-rotated.pdf`, blob: pdfBlob(bytes) }];
+  return toOutput(out);
 }
 
 /* ─── 7. Watermark ─────────────────────────────────────────────────────── */
@@ -296,7 +274,8 @@ export async function watermarkPdf(
   const text = String(opts.text ?? "").trim() || "CONFIDENTIAL";
   const opacity = Math.min(60, Math.max(5, Number(opts.opacity) || 20));
 
-  // render the text once on a transparent canvas (canvas text = full Bengali support)
+  // render the text once on a transparent canvas (canvas text = full Bengali support) —
+  // canvas stays on the main thread; the pdf-lib embed/draw/save runs in the worker
   onProgress(12, pLabel("pDrawingWatermark"));
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
@@ -327,36 +306,16 @@ export async function watermarkPdf(
   ctx.fillStyle = "rgba(120,120,130,1)";
   ctx.fillText(text, 0, 0);
   const pngBlob = await canvasToBlob(canvas, "image/png");
-  const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
+  const png = await pngBlob.arrayBuffer();
 
-  const { PDFDocument } = await import("pdf-lib");
-  onProgress(40, pLabel("pOpening"));
-  let doc: PdfDoc;
-  try {
-    doc = await PDFDocument.load(await readArrayBuffer(file), { ignoreEncryption: true });
-  } catch {
-    throw loadFailError();
-  }
-  const img = await doc.embedPng(pngBytes);
-  const pages = doc.getPages();
-  const drawOpacity = Math.min(0.9, Math.max(0.08, opacity / 100));
-  pages.forEach((page, idx) => {
-    const { width, height } = page.getSize();
-    const w = width * 0.7;
-    const h = w * (256 / 1024); // keep canvas aspect
-    page.drawImage(img, {
-      x: (width - w) / 2,
-      y: (height - h) / 2,
-      width: w,
-      height: h,
-      opacity: drawOpacity,
-    });
-    onProgress(Math.round((idx / pages.length) * 45) + 50, pLabel("pPage", idx + 1, pages.length));
-  });
-  onProgress(96, pLabel("pSaving"));
-  const bytes = await doc.save();
+  const base = stripExt(file.name);
+  const out = await runPdfSafe(
+    [file],
+    (buffers) => ({ op: "watermark", buffer: buffers[0], png, opacity, base }),
+    onProgress
+  );
   onProgress(100, pLabel("pDone"));
-  return [{ name: `${stripExt(file.name)}-watermarked.pdf`, blob: pdfBlob(bytes) }];
+  return toOutput(out);
 }
 
 /* ─── 8. Delete pages ──────────────────────────────────────────────────── */
@@ -370,26 +329,14 @@ export async function deletePdfPages(
   if (!file) throw err("givePdf");
   const pagesInput = String(opts.pages ?? "").trim();
   if (!pagesInput) throw err("needPagesInput");
-  const { PDFDocument } = await import("pdf-lib");
-  onProgress(20, pLabel("pOpening"));
-  let doc: PdfDoc;
-  try {
-    doc = await PDFDocument.load(await readArrayBuffer(file), { ignoreEncryption: true });
-  } catch {
-    throw loadFailError();
-  }
-  const count = doc.getPageCount();
-  const toDelete = parsePageRanges(pagesInput, count);
-  if (toDelete.length >= count) {
-    throw err("cantDeleteAll");
-  }
-  onProgress(50, pLabel("pDeletingPages"));
-  // remove in descending order so earlier indices stay valid
-  [...toDelete].sort((a, b) => b - a).forEach((p) => doc.removePage(p - 1));
-  onProgress(85, pLabel("pSaving"));
-  const bytes = await doc.save();
+  const base = stripExt(file.name);
+  const out = await runPdfSafe(
+    [file],
+    (buffers) => ({ op: "delete-pages", buffer: buffers[0], pages: pagesInput, base }),
+    onProgress
+  );
   onProgress(100, pLabel("pDone"));
-  return [{ name: `${stripExt(file.name)}-edited.pdf`, blob: pdfBlob(bytes) }];
+  return toOutput(out);
 }
 
 /* ─── 9. Extract text ──────────────────────────────────────────────────── */

@@ -12,7 +12,11 @@ type Entry = {
 };
 
 const M = {
-  // ── generic / helpers ─────────────────────────────────────────────────
+  // ── generic / helpers ─────────────────────────────────────────────
+  unexpected: {
+    bn: "কিছু একটা সমস্যা হয়েছে — আবার চেষ্টা করুন",
+    en: "Something went wrong — please try again",
+  },
   pdfLoadFail: {
     bn: "পিডিএফটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত বা পাসওয়ার্ড-সুরক্ষিত হতে পারে",
     en: "Couldn't read the PDF — the file may be corrupt or password-protected",
