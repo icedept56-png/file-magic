@@ -2,6 +2,7 @@
 import type { OutputFile, ToolOptions, ProgressFn } from "../types";
 import { stripExt, loadImageBitmap, canvasToBlob } from "../helpers";
 import { err, pLabel } from "../messages";
+import { ensureDecoded } from "./formats";
 
 type Src = ImageBitmap | HTMLImageElement;
 
@@ -25,8 +26,12 @@ function closeBitmap(src: Src): void {
 
 async function fileToBitmap(file: File): Promise<Src> {
   try {
-    return await loadImageBitmap(file);
-  } catch {
+    // Day 10: HEIC/HEIF (iPhone photos) are decoded via heic2any first
+    const decoded = await ensureDecoded(file);
+    return await loadImageBitmap(decoded);
+  } catch (e) {
+    // already-localized errors (heicFail) pass through untouched
+    if ((e as { fmKey?: string })?.fmKey) throw e;
     throw err("imageCorrupt", file.name);
   }
 }

@@ -38,6 +38,9 @@ import {
   ScanText,
   LayoutGrid,
   FileType2 as WdFileType2,
+  Aperture,
+  Presentation,
+  BookOpenText,
 } from "lucide-react";
 
 import type { Category, ToolDef } from "./types";
@@ -45,6 +48,7 @@ import * as pdf from "./processors/pdf";
 import * as image from "./processors/image";
 import * as docs from "./processors/docs";
 import * as data from "./processors/data";
+import * as formats from "./processors/formats";
 
 /** flat tile colors (light dashboard theme) */
 export const CATEGORIES: Category[] = [
@@ -59,6 +63,9 @@ export const CATEGORIES: Category[] = [
 
 const PDF_ACCEPT = "application/pdf,.pdf";
 const IMG_ACCEPT = "image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg";
+const HEIC_ACCEPT = ".heic,.heif,image/heic,image/heif";
+const PPTX_ACCEPT = ".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation";
+const LEGACY_ACCEPT = ".odt,.rtf,application/vnd.oasis.opendocument.text,application/rtf,text/rtf";
 const SHEET_ACCEPT = ".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv";
 const MD_ACCEPT = ".md,.markdown,.txt,text/markdown,text/plain";
 const AUDIO_ACCEPT = "audio/*,video/*,.mp3,.wav,.ogg,.m4a,.flac,.mp4,.webm";
@@ -645,6 +652,79 @@ export const TOOLS: ToolDef[] = [
       // OCR studio runs in its own full-screen view — never in the workspace
       throw new Error("OCR স্টুডিওর নিজস্ব স্ক্রিন আছে — টুলটি খুলুন।");
     },
+  },
+  {
+    id: "heic-convert",
+    name: "HEIC → JPG/PNG",
+    nameEn: "HEIC → JPG/PNG",
+    desc: "iPhone-এর HEIC/HEIF ছবি JPG বা PNG-তে রূপান্তর — ব্রাউজারেই, আপলোড ছাড়া",
+    descEn: "Convert iPhone HEIC/HEIF photos to JPG or PNG — right in the browser, no uploads",
+    keywords: ["heic", "heif", "iphone", "photo", "convert", "jpg", "png", "আইফোন", "ছবি"],
+    category: "image",
+    icon: Aperture,
+    gradient: "bg-gradient-to-br from-fuchsia-500 to-purple-600 shadow-fuchsia-500/40",
+    glow: "rgba(217,70,239,0.35)",
+    files: { accept: HEIC_ACCEPT, multiple: true },
+    inputMode: "file",
+    hint: "iPhone ছবি (.heic / .heif)",
+    hintEn: "iPhone photos (.heic / .heif)",
+    actionLabel: "রূপান্তর করুন",
+    actionLabelEn: "Convert",
+    options: [
+      {
+        key: "format",
+        label: "ফরম্যাট",
+        labelEn: "Format",
+        type: "select",
+        default: "jpeg",
+        options: [
+          { value: "jpeg", label: "JPG", labelEn: "JPG" },
+          { value: "png", label: "PNG", labelEn: "PNG" },
+        ],
+      },
+      { key: "quality", label: "কোয়ালিটি", labelEn: "Quality", type: "range", default: 90, min: 30, max: 100, step: 5, unit: "%" },
+    ],
+    process: formats.heicConvert,
+  },
+  {
+    id: "pptx-text",
+    name: "PPTX → টেক্সট",
+    nameEn: "PPTX → Text",
+    desc: "পাওয়ারপয়েন্ট প্রেজেন্টেশনের সব স্লাইডের লেখা এক টেক্সট ফাইলে তুলুন",
+    descEn: "Pull the text of every PowerPoint slide into one text file",
+    keywords: ["pptx", "powerpoint", "slides", "presentation", "extract", "পাওয়ারপয়েন্ট", "স্লাইড"],
+    category: "document",
+    icon: Presentation,
+    gradient: "bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-500/40",
+    glow: "rgba(249,115,22,0.35)",
+    files: { accept: PPTX_ACCEPT, multiple: false },
+    inputMode: "file",
+    hint: "PowerPoint ফাইল (.pptx)",
+    hintEn: "PowerPoint file (.pptx)",
+    actionLabel: "টেক্সট তুলুন",
+    actionLabelEn: "Extract text",
+    options: [],
+    process: formats.pptxText,
+  },
+  {
+    id: "odt-rtf-reader",
+    name: "ODT/RTF → টেক্সট",
+    nameEn: "ODT/RTF → Text",
+    desc: "OpenDocument (ODT) ও RTF ডকুমেন্ট পড়ে পরিষ্কার টেক্সট বানান",
+    descEn: "Read OpenDocument (ODT) and RTF files into clean text",
+    keywords: ["odt", "rtf", "opendocument", "libreoffice", "legacy", "read", "extract", "ওডিটি", "লিগ্যাসি"],
+    category: "document",
+    icon: BookOpenText,
+    gradient: "bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-500/40",
+    glow: "rgba(249,115,22,0.35)",
+    files: { accept: LEGACY_ACCEPT, multiple: false },
+    inputMode: "file",
+    hint: "ODT বা RTF ফাইল",
+    hintEn: "ODT or RTF file",
+    actionLabel: "টেক্সট তুলুন",
+    actionLabelEn: "Extract text",
+    options: [],
+    process: formats.odtRtfToText,
   },
   {
     id: "word-editor",

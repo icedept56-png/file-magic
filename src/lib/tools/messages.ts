@@ -17,6 +17,43 @@ const M = {
     bn: "কিছু একটা সমস্যা হয়েছে — আবার চেষ্টা করুন",
     en: "Something went wrong — please try again",
   },
+  // ── formats.ts (Day 10) ──────────────────────────────────────────────
+  heicFail: {
+    bn: (name: string) => `"${name}" HEIC ছবিটি রূপান্তর করা যায়নি — ফাইলটি ক্ষতিগ্রস্ত হতে পারে`,
+    en: (name: string) => `Couldn't convert the HEIC image "${name}" — the file may be corrupt`,
+  },
+  heicNone: {
+    bn: "কোনো HEIC/HEIF ছবি পাওয়া যায়নি — iPhone-এর ছবি (.heic) দিন",
+    en: "No HEIC/HEIF images found — add iPhone photos (.heic)",
+  },
+  givePptx: {
+    bn: "একটি PPTX ফাইল দিন",
+    en: "Add a PPTX file",
+  },
+  pptxCorrupt: {
+    bn: (name: string) => `"${name}" পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত বা PPTX নয়`,
+    en: (name: string) => `Couldn't read "${name}" — the file may be corrupt or not a PPTX`,
+  },
+  noSlides: {
+    bn: "PPTX-এ কোনো স্লাইড নেই",
+    en: "The PPTX has no slides",
+  },
+  pptxNoText: {
+    bn: "স্লাইডে কোনো লেখা পাওয়া যায়নি",
+    en: "No text found in the slides",
+  },
+  giveLegacy: {
+    bn: "একটি ODT বা RTF ফাইল দিন",
+    en: "Add an ODT or RTF file",
+  },
+  legacyFail: {
+    bn: (name: string) => `"${name}" পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত বা সমর্থিত নয়`,
+    en: (name: string) => `Couldn't read "${name}" — the file may be corrupt or unsupported`,
+  },
+  legacyNoText: {
+    bn: "ডকুমেন্টে কোনো লেখা পাওয়া যায়নি",
+    en: "No text found in the document",
+  },
   pdfLoadFail: {
     bn: "পিডিএফটি পড়া যায়নি — ফাইলটি ক্ষতিগ্রস্ত বা পাসওয়ার্ড-সুরক্ষিত হতে পারে",
     en: "Couldn't read the PDF — the file may be corrupt or password-protected",

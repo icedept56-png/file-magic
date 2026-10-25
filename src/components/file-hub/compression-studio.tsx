@@ -199,7 +199,7 @@ export function CompressionStudio() {
     async (list: FileList | File[]) => {
       const arr = Array.from(list);
       const imgs = arr.filter(
-        (f) => /^image\//.test(f.type) || /\.(png|jpe?g|webp|bmp|gif)$/i.test(f.name)
+        (f) => /^image\//.test(f.type) || /\.(png|jpe?g|webp|bmp|gif|heic|heif)$/i.test(f.name)
       );
       const skipped = arr.length - imgs.length;
       if (skipped > 0) toast.error(`${num(skipped)} ${t("bsSkipped")}`);
@@ -451,7 +451,7 @@ export function CompressionStudio() {
       <input
         ref={inputRef}
         type="file"
-        accept="image/*,.png,.jpg,.jpeg,.webp,.bmp,.gif"
+        accept="image/*,.png,.jpg,.jpeg,.webp,.bmp,.gif,.heic,.heif"
         multiple
         className="sr-only"
         aria-label={t("csAddAria")}

@@ -52,12 +52,13 @@ import { Slider } from "@/components/ui/slider";
 import { useT } from "@/lib/i18n";
 import { downloadBlob, formatBytes, safeName, stripExt } from "@/lib/tools/helpers";
 import { err } from "@/lib/tools/messages";
+import { ensureDecoded } from "@/lib/tools/processors/formats";
 import { useAppStore } from "@/store/app-store";
 
 /* ── constants & types ─────────────────────────────────────────────────── */
 
-const ACCEPT = "image/*,.png,.jpg,.jpeg,.webp,.bmp,.gif";
-const IMG_EXT = /\.(png|jpe?g|webp|bmp|gif)$/i;
+const ACCEPT = "image/*,.png,.jpg,.jpeg,.webp,.bmp,.gif,.heic,.heif";
+const IMG_EXT = /\.(png|jpe?g|webp|bmp|gif|heic|heif)$/i;
 const MAX_FILES = 60;
 const THUMB = 96;
 const THUMB_CONCURRENCY = 8;
@@ -90,10 +91,12 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 /* ── canvas helpers ────────────────────────────────────────────────────── */
 
 async function bitmapFrom(file: File): Promise<ImageBitmap> {
+  // Day 10: HEIC/HEIF (iPhone photos) decode via heic2any before canvas work
+  const decoded = await ensureDecoded(file);
   try {
-    return await createImageBitmap(file, { imageOrientation: "from-image" } as ImageBitmapOptions);
+    return await createImageBitmap(decoded, { imageOrientation: "from-image" } as ImageBitmapOptions);
   } catch {
-    return await createImageBitmap(file);
+    return await createImageBitmap(decoded);
   }
 }
 
