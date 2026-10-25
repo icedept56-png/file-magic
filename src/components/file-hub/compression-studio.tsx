@@ -609,6 +609,8 @@ export function CompressionStudio() {
                     min={5}
                     max={95}
                     step={5}
+                    thumbLabel={t("csQuality")}
+                    thumbValueText={(v) => `${v}%`}
                     onValueChange={(v) => changeSettings(() => setQuality(v[0] ?? 75))}
                     aria-label={t("csQuality")}
                   />
@@ -643,6 +645,8 @@ export function CompressionStudio() {
                     min={0}
                     max={4000}
                     step={100}
+                    thumbLabel={t("csMaxEdge")}
+                    thumbValueText={(v) => (v === 0 ? t("csEdgeOff") : `${v}px`)}
                     onValueChange={(v) => changeSettings(() => setMaxEdge(v[0] ?? 0))}
                     aria-label={t("csMaxEdge")}
                   />

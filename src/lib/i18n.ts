@@ -504,6 +504,17 @@ const STR = {
   urUndo: ["আন্ডু (Ctrl+Z)", "Undo (Ctrl+Z)"],
   urRedo: ["রিডু (Ctrl+Shift+Z)", "Redo (Ctrl+Shift+Z)"],
 
+  // keyboard shortcuts + a11y (Day 8 — 60-day roadmap)
+  skTitle: ["কীবোর্ড শর্টকাট", "Keyboard shortcuts"],
+  skSubtitle: ["দ্রুত কাজের জন্য মূল শর্টকাটগুলো", "The essentials for faster work"],
+  skSearch: ["টুল সার্চ", "Search tools"],
+  skHelp: ["এই তালিকা", "This list"],
+  skBack: ["হোমে ফিরুন (টুল/এডিটরে)", "Back to home (in tool/editor)"],
+  skUndo: ["আন্ডু (এডিটরে)", "Undo (editors)"],
+  skRedo: ["রিডু (এডিটরে)", "Redo (editors)"],
+  skSelect: ["পেজ/ফাইল বাছাই", "Select page/file"],
+  skTab: ["ঘুরে দেখুন", "Navigate"],
+
   // footer
   footerLine: [
     "আপনার ফাইল আপনার ডিভাইসেই থাকে। কোনো আপলোড নেই, কোনো ট্র্যাকিং নেই।",

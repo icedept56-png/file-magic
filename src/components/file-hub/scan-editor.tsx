@@ -703,6 +703,8 @@ export function ScanEditor() {
                   min={-60}
                   max={60}
                   step={1}
+                  thumbLabel={t("scanBrightness")}
+                  thumbValueText={(v) => (v > 0 ? `+${v}` : String(v))}
                   disabled={sliderDisabled || settings.auto}
                   onValueChange={([v]) => setSettings((s) => ({ ...s, brightness: v }))}
                 />
@@ -720,6 +722,8 @@ export function ScanEditor() {
                   min={-60}
                   max={60}
                   step={1}
+                  thumbLabel={t("scanContrast")}
+                  thumbValueText={(v) => (v > 0 ? `+${v}` : String(v))}
                   disabled={sliderDisabled || settings.auto}
                   onValueChange={([v]) => setSettings((s) => ({ ...s, contrast: v }))}
                 />

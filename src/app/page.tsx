@@ -25,6 +25,7 @@ import { OcrStudio } from "@/components/file-hub/ocr-studio";
 import { BatchStudio } from "@/components/file-hub/batch-studio";
 import { CompressionStudio } from "@/components/file-hub/compression-studio";
 import { WordEditor } from "@/components/file-hub/word-editor";
+import { ShortcutLayer } from "@/components/file-hub/shortcut-layer";
 import { Footer } from "@/components/file-hub/footer";
 import { HistorySync } from "@/components/file-hub/history-sync";
 
@@ -52,10 +53,18 @@ export default function Home() {
     <div className="relative flex min-h-screen bg-background text-foreground">
       <Background />
       <HistorySync />
+      {/* a11y: keyboard users jump straight to the content (Day 8) */}
+      <a
+        href="#fm-main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-emerald-600 focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-white focus:shadow-xl"
+      >
+        মূল কন্টেন্টে যান / Skip to content
+      </a>
+      <ShortcutLayer />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Navbar />
-        <main className="flex-1">
+        <main id="fm-main" className="flex-1">
           <AnimatePresence mode="wait">
             {view === "home" ? (
               <motion.div

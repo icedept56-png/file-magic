@@ -772,6 +772,8 @@ export function BatchStudio() {
                 max={95}
                 step={5}
                 value={[quality]}
+                thumbLabel={t("bsQuality")}
+                thumbValueText={(v) => `${v}%`}
                 onValueChange={(vals) => changeQuality(vals[0] ?? 75)}
                 aria-label={t("bsQuality")}
                 disabled={busy}

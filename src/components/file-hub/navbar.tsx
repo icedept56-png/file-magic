@@ -1,12 +1,13 @@
 "use client";
 
-import { Sparkles, LayoutGrid } from "lucide-react";
+import { Sparkles, LayoutGrid, Keyboard } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 import { PwaInstaller } from "@/components/file-hub/pwa-installer";
 import { LanguageToggle } from "@/components/file-hub/language-toggle";
+import { openShortcutsHelp } from "@/components/file-hub/shortcut-layer";
 
 /** White top bar — brand + language switcher + install */
 export function Navbar() {
@@ -54,6 +55,16 @@ export function Navbar() {
             )}
             <LanguageToggle />
             <PwaInstaller />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={openShortcutsHelp}
+              aria-label={t("skTitle")}
+              title={t("skTitle")}
+              className="h-10 w-10 rounded-xl text-emerald-900/70 hover:bg-emerald-600/10 hover:text-emerald-900"
+            >
+              <Keyboard className="h-4 w-4" />
+            </Button>
           </div>
         </nav>
       </div>
