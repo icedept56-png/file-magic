@@ -606,3 +606,26 @@ Stage Summary:
 - Day 9 shipped: pdf-lib heavy lifting now off the main thread with zero-copy transfers and bulletproof fallback — the "৫০MB PDF-এ ব্রাউজার আটকে যায়" pain has its structural fix; UI thread stays free for progress/spinners
 - Lesson: bun + pdf-lib embedJpg of many large JPEGs is a memory bomb — never run it beside the dev server; verify big-file paths with size-only fakes
 - Artifacts: workers/{pdf-core,pdf-worker,client}.ts, .verify/w9-merged.pdf
+
+---
+Task ID: 23
+Agent: main (Z.ai Code)
+Task: Day 10 (60-day roadmap) — ফরম্যাট কভারেজ ব্লিটজ: HEIC, PPTX text, ODT/RTF readers
+
+Work Log:
+- bun add heic2any (libheif wasm, dynamic-import only when a HEIC file appears)
+- New src/lib/tools/processors/formats.ts:
+  • ensureDecoded(file) — pass-through for normal images, decodes HEIC/HEIF→JPEG File (marked fmKey error for precise passthrough)
+  • heicConvert — HEIC→JPG/PNG with quality option, multi-file
+  • pptxText — JSZip → ppt/slides/slideN.xml sorted NUMERICALLY → DOMParser → a:t runs paragraph-wise → "── Slide N ──" sections
+  • odtRtfToText — PK-magic sniff: ODT (content.xml walk: text:h/p, tab, line-break, s→spaces) vs RTF (control-word stripper: par/line/tab, \uN, \'hh with cp1252 high-byte map, destination-group skipping for fonttbl/colortbl/…)
+- HEIC intake wired into the whole image surface: image.ts fileToBitmap + batch-studio bitmapFrom now ensureDecoded() first; batch/compression accepts += .heic/.heif
+- Registry +3 tools: heic-convert (Aperture, image), pptx-text (Presentation, document), odt-rtf-reader (BookOpenText, document); messages +10 keys; image category ৯, document ১৩, TOOL_COUNT ৪৫
+- E2E (agent-browser, real runs): PPTX (synthetic-but-valid 2-slide OOXML built via JSZip) → text with slide separators, Bengali+English both present, slide order correct; ODT (valid minimal ODF) → "## ODT শিরোনাম" heading marker + Bengali/English paragraphs + tab preserved; RTF → text clean (fonttbl/fs24 stripped, tab kept, bold/italic text present, \'93/\'94 → “” via cp1252 map — bug caught & fixed during E2E); fake .heic → heic2any loads (wasm) and rejects with localized heicFail alert; EN names visible; mobile 390px clean; fresh reload console 0 errors
+- Honest limitation: no HEIC ENCODER exists in this environment (ffmpeg has no heif) so a POSITIVE real-HEIC decode could not be E2E-tested; the decode path is the well-trodden heic2any call with the error path verified
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 10 shipped: "এই ফরম্যাট কেন কাজ করে না?" — iPhone photos now flow through every image tool; PowerPoint slides and legacy ODT/RTF documents are readable, all on-device
+- TOOL_COUNT ৪৫ (was ৩৯ at Day 3 end) — 6 new tools across Days 4-10 (page-manager, compression-studio, word-editor, heic-convert, pptx-text, odt-rtf-reader)
+- Artifacts: processors/formats.ts, .verify/{test.pptx,test.odt}
