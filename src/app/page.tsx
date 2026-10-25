@@ -24,6 +24,7 @@ import { ScanEditor } from "@/components/file-hub/scan-editor";
 import { OcrStudio } from "@/components/file-hub/ocr-studio";
 import { BatchStudio } from "@/components/file-hub/batch-studio";
 import { CompressionStudio } from "@/components/file-hub/compression-studio";
+import { WordEditor } from "@/components/file-hub/word-editor";
 import { Footer } from "@/components/file-hub/footer";
 import { HistorySync } from "@/components/file-hub/history-sync";
 
@@ -39,6 +40,7 @@ const EDITOR_VIEWS: Record<string, React.ComponentType> = {
   "ocr-studio": OcrStudio,
   "batch-studio": BatchStudio,
   "compression-studio": CompressionStudio,
+  "word-editor": WordEditor,
 };
 
 export default function Home() {

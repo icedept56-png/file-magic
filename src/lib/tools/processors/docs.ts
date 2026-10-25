@@ -15,7 +15,7 @@ function escapeHtml(s: string): string {
 }
 
 /** Wrap a body fragment into a standalone, nicely styled HTML document */
-function wrapHtmlDoc(bodyHtml: string, title: string): string {
+export function wrapHtmlDoc(bodyHtml: string, title: string): string {
   return `<!DOCTYPE html>
 <html lang="bn">
 <head>
@@ -51,7 +51,7 @@ ${bodyHtml}
 }
 
 /** Render an HTML fragment to a paginated A4 PDF blob (Bengali fonts supported) */
-async function htmlToPdfBlob(html: string, onProgress: ProgressFn): Promise<Blob> {
+export async function htmlToPdfBlob(html: string, onProgress: ProgressFn): Promise<Blob> {
   // 1. create offscreen container
   const el = document.createElement("div");
   el.setAttribute(

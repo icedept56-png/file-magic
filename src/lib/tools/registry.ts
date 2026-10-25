@@ -37,6 +37,7 @@ import {
   ScanLine,
   ScanText,
   LayoutGrid,
+  FileType2 as WdFileType2,
 } from "lucide-react";
 
 import type { Category, ToolDef } from "./types";
@@ -74,6 +75,7 @@ export const EDITOR_IDS: readonly string[] = [
   "ocr-studio",
   "batch-studio",
   "compression-studio",
+  "word-editor",
 ];
 
 export const TOOLS: ToolDef[] = [
@@ -642,6 +644,28 @@ export const TOOLS: ToolDef[] = [
     process: async () => {
       // OCR studio runs in its own full-screen view — never in the workspace
       throw new Error("OCR স্টুডিওর নিজস্ব স্ক্রিন আছে — টুলটি খুলুন।");
+    },
+  },
+  {
+    id: "word-editor",
+    name: "ওয়ার্ড এডিটর",
+    nameEn: "Word Editor",
+    desc: "ব্রাউজারেই docx লিখুন/এডিট করুন — বাংলা ফন্ট নিরাপদ, docx খুলুন, PDF ও Word এ এক্সপোর্ট করুন",
+    descEn: "Write & edit docx right in the browser — Bengali-safe, open .docx, export PDF & Word",
+    keywords: ["word", "docx", "write", "editor", "document", "ms word", "ওয়ার্ড", "ডকুমেন্ট", "লিখুন", "cv"],
+    category: "document",
+    icon: WdFileType2,
+    gradient: "bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-500/40",
+    glow: "rgba(249,115,22,0.35)",
+    files: { accept: ".docx,.txt,.md", multiple: false },
+    inputMode: "file",
+    hint: "খালি শুরু করুন বা docx/txt খুলুন",
+    hintEn: "Start blank or open a docx/txt",
+    actionLabel: "এডিটর খুলুন",
+    actionLabelEn: "Open editor",
+    options: [],
+    process: async () => {
+      throw new Error("ওয়ার্ড এডিটরের নিজস্ব ভিউ আছে — টুলটি খুলুন।");
     },
   },
   {
