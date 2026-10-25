@@ -73,6 +73,7 @@ export const EDITOR_IDS: readonly string[] = [
   "document-scan",
   "ocr-studio",
   "batch-studio",
+  "compression-studio",
 ];
 
 export const TOOLS: ToolDef[] = [
@@ -393,6 +394,28 @@ export const TOOLS: ToolDef[] = [
     process: async () => {
       // Batch studio runs in its own full-screen view — never in the workspace
       throw new Error("ব্যাচ স্টুডিওর নিজস্ব স্ক্রিন আছে — টুলটি খুলুন।");
+    },
+  },
+  {
+    id: "compression-studio",
+    name: "কম্প্রেশন স্টুডিও",
+    nameEn: "Compression Studio",
+    desc: "লাইভ কোয়ালিটি স্লাইডারে কত ছোট হবে আগেই দেখুন — আগে-পরে তুলনা, তারপর সব কম্প্রেস করে ZIP",
+    descEn: "Live quality slider with size prediction — before/after compare, then compress all into a ZIP",
+    keywords: ["compress", "size", "quality", "smaller", "webp", "jpeg", "কম্প্রেস", "ছোট", "সাইজ"],
+    category: "image",
+    icon: Gauge,
+    gradient: "bg-gradient-to-br from-fuchsia-500 to-purple-600 shadow-fuchsia-500/40",
+    glow: "rgba(217,70,239,0.35)",
+    files: { accept: "image/*,.png,.jpg,.jpeg,.webp,.bmp,.gif", multiple: true },
+    inputMode: "file",
+    hint: "এক বা একাধিক ছবি (সর্বোচ্চ ৩০)",
+    hintEn: "One or many images (up to 30)",
+    actionLabel: "স্টুডিও খুলুন",
+    actionLabelEn: "Open Studio",
+    options: [],
+    process: async () => {
+      throw new Error("কম্প্রেশন স্টুডিওর নিজস্ব স্ক্রিন আছে — টুলটি খুলুন।");
     },
   },
   {
