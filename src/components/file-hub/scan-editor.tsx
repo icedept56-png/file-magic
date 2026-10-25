@@ -29,11 +29,13 @@ import {
   Images,
   Loader2,
   Plus,
+  Redo2,
   RotateCcw,
   RotateCw,
   ScanLine,
   ScanText,
   Trash2,
+  Undo2,
   UploadCloud,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -43,6 +45,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useT } from "@/lib/i18n";
+import { useEditorHistory, useUndoRedoKeys } from "@/lib/use-history";
 import { downloadBlob, safeName, stripExt } from "@/lib/tools/helpers";
 import { useAppStore } from "@/store/app-store";
 
@@ -235,7 +238,12 @@ export function ScanEditor() {
   const setOcrHandoff = useAppStore((s) => s.setOcrHandoff);
 
   /* document state */
-  const [pages, setPages] = useState<Page[]>([]);
+  const pagesHist = useEditorHistory<Page[]>([]);
+  const pages = pagesHist.state;
+  /** page mutations go through history — rotate/move/delete/add are undo points */
+  const setPages = pagesHist.set;
+  // unified undo/redo (Day 7)
+  useUndoRedoKeys(pagesHist);
   const [cur, setCur] = useState(0);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [thumbs, setThumbs] = useState<{ id: string; url: string }[]>([]);
@@ -286,7 +294,7 @@ export function ScanEditor() {
         }
       }
       if (added.length) {
-        setPages((p) => {
+        pagesHist.set((p) => {
           const next = [...p, ...added];
           setCur(p.length); // select first newly added page
           return next;
@@ -725,6 +733,12 @@ export function ScanEditor() {
               {t("scanPageN")} {num(cur + 1)}
             </Label>
             <div className="mt-3 grid grid-cols-4 gap-2">
+              <Button variant="outline" size="icon" disabled={busy || !pagesHist.canUndo} onClick={pagesHist.undo} aria-label={t("urUndo")} title={`${t("urUndo")} (Ctrl+Z)`} className="h-11 w-full">
+                <Undo2 className="h-4 w-4" aria-hidden />
+              </Button>
+              <Button variant="outline" size="icon" disabled={busy || !pagesHist.canRedo} onClick={pagesHist.redo} aria-label={t("urRedo")} title={`${t("urRedo")} (Ctrl+Shift+Z)`} className="h-11 w-full">
+                <Redo2 className="h-4 w-4" aria-hidden />
+              </Button>
               <Button variant="outline" size="icon" disabled={busy} onClick={() => rotate(-1)} aria-label={t("scanRotateL")} className="h-11 w-full">
                 <RotateCcw className="h-4 w-4" aria-hidden />
               </Button>

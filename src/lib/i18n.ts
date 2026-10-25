@@ -500,6 +500,10 @@ const STR = {
   weEmpty: ["আগে কিছু লিখুন", "Write something first"],
   weHint: ["Ctrl+Z দিয়ে ভুল শোধরান · সব কাজ ডিভাইসেই হয়", "Ctrl+Z to undo · everything runs on your device"],
 
+  // unified undo/redo (Day 7 — 60-day roadmap)
+  urUndo: ["আন্ডু (Ctrl+Z)", "Undo (Ctrl+Z)"],
+  urRedo: ["রিডু (Ctrl+Shift+Z)", "Redo (Ctrl+Shift+Z)"],
+
   // footer
   footerLine: [
     "আপনার ফাইল আপনার ডিভাইসেই থাকে। কোনো আপলোড নেই, কোনো ট্র্যাকিং নেই।",

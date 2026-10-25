@@ -30,11 +30,13 @@ import {
   ImagePlus,
   LayoutGrid,
   Loader2,
+  Redo2,
   RotateCcw,
   RotateCw,
   ShieldCheck,
   Square,
   Trash2,
+  Undo2,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -43,6 +45,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useT } from "@/lib/i18n";
+import { useEditorHistory, useUndoRedoKeys } from "@/lib/use-history";
 import { downloadBlob, formatBytes, safeName, stripExt } from "@/lib/tools/helpers";
 import { err } from "@/lib/tools/messages";
 import { useAppStore } from "@/store/app-store";
@@ -198,7 +201,8 @@ export function PageManager() {
   const goHome = useAppStore((s) => s.goHome);
 
   const [srcFile, setSrcFile] = useState<File | null>(null);
-  const [entries, setEntries] = useState<PageEntry[]>([]);
+  const pages = useEditorHistory<PageEntry[]>([]);
+  const entries = pages.state;
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [phase, setPhase] = useState<"empty" | "loading" | "ready">("empty");
   const [loadPct, setLoadPct] = useState(0);
@@ -231,7 +235,7 @@ export function PageManager() {
         return;
       }
       revokeAll();
-      setEntries([]);
+      pages.reset([]);
       setSelected(new Set());
       setSrcFile(file);
       setPhase("loading");
@@ -258,7 +262,7 @@ export function PageManager() {
           signal
         );
         if (signal.cancelled) return;
-        setEntries(collected);
+        pages.reset(collected);
         setPhase("ready");
       } catch {
         if (!signal.cancelled) {
@@ -268,7 +272,7 @@ export function PageManager() {
         }
       }
     },
-    [revokeAll, trackUrl]
+    [revokeAll, trackUrl, pages]
   );
 
   useEffect(() => {
@@ -278,6 +282,9 @@ export function PageManager() {
     };
   }, []);
 
+  // unified undo/redo (Day 7)
+  useUndoRedoKeys(pages);
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
@@ -285,24 +292,11 @@ export function PageManager() {
     if (f) void loadFile(f);
   };
 
-  /* ── entry ops ── */
+  /* ── entry ops (every mutation = one undo point) ── */
+  // NOTE: object-URLs are NOT revoked on entry removal — undo may bring the
+  // entry back. URLs live until the file is reloaded / editor unmounts.
   const updateEntries = (fn: (prev: PageEntry[]) => PageEntry[]) => {
-    setEntries((prev) => {
-      const next = fn(prev);
-      // revoke object-URLs that no longer belong to any entry
-      const used = new Set<string>();
-      next.forEach((e) => {
-        if (e.thumb) used.add(e.thumb);
-      });
-      urlsRef.current = urlsRef.current.filter((u) => {
-        if (!used.has(u)) {
-          URL.revokeObjectURL(u);
-          return false;
-        }
-        return true;
-      });
-      return next;
-    });
+    pages.set(fn);
   };
 
   const toggleSel = (id: string) =>
@@ -598,6 +592,18 @@ export function PageManager() {
             </span>
             {toolBtn(<CheckSquare className="h-4 w-4" />, t("pmSelectAll"), () =>
               setSelected(new Set(entries.map((e) => e.id)))
+            )}
+            {toolBtn(
+              <Undo2 className="h-4 w-4" />,
+              t("urUndo"),
+              pages.undo,
+              !pages.canUndo
+            )}
+            {toolBtn(
+              <Redo2 className="h-4 w-4" />,
+              t("urRedo"),
+              pages.redo,
+              !pages.canRedo
             )}
             {toolBtn(<Square className="h-4 w-4" />, t("pmSelectNone"), () => setSelected(new Set()), !hasSelection)}
             {toolBtn(

@@ -10,8 +10,10 @@ import {
   Loader2,
   Minus,
   Plus,
+  Redo2,
   Rows3,
   Table2,
+  Undo2,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -21,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/lib/i18n";
+import { useEditorHistory, useUndoRedoKeys } from "@/lib/use-history";
 import { downloadBlob, stripExt } from "@/lib/tools/helpers";
 import { useAppStore } from "@/store/app-store";
 
@@ -135,7 +138,12 @@ export function SheetEditor() {
   const { t, num, lang } = useT();
   const goHome = useAppStore((s) => s.goHome);
 
-  const [wb, setWb] = useState<WorkbookState | null>(null);
+  const wbHist = useEditorHistory<WorkbookState | null>(null);
+  const wb = wbHist.state;
+  /** grid mutations go through history — every change becomes an undo point */
+  const setWb = wbHist.set;
+  // unified undo/redo (Day 7) — text cells keep native undo via the guard
+  useUndoRedoKeys(wbHist);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -184,7 +192,7 @@ export function SheetEditor() {
           );
           data[name] = normalizeSheet(grid);
         }
-        setWb({ sheetNames: parsed.SheetNames, data, active: parsed.SheetNames[0] });
+        wbHist.reset({ sheetNames: parsed.SheetNames, data, active: parsed.SheetNames[0] });
         setBaseName(stripExt(file.name) || "sheet");
         setSelectedRow(-1);
         setSelectedCol(-1);
@@ -501,6 +509,28 @@ export function SheetEditor() {
 
         {/* ── toolbar row 2: grid operations ──────────────────────────── */}
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-1.5 px-3 pb-2.5 sm:px-5">
+          <button
+            type="button"
+            onClick={wbHist.undo}
+            disabled={!wbHist.canUndo}
+            aria-label={t("urUndo")}
+            title={`${t("urUndo")} (Ctrl+Z)`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-emerald-900/[0.08] bg-white px-3 text-xs font-semibold text-emerald-900/80 shadow-sm transition hover:bg-emerald-50 hover:text-emerald-900 disabled:opacity-40"
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+            {t("urUndo")}
+          </button>
+          <button
+            type="button"
+            onClick={wbHist.redo}
+            disabled={!wbHist.canRedo}
+            aria-label={t("urRedo")}
+            title={`${t("urRedo")} (Ctrl+Shift+Z)`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-emerald-900/[0.08] bg-white px-3 text-xs font-semibold text-emerald-900/80 shadow-sm transition hover:bg-emerald-50 hover:text-emerald-900 disabled:opacity-40"
+          >
+            <Redo2 className="h-3.5 w-3.5" />
+            {t("urRedo")}
+          </button>
           <button
             type="button"
             onClick={addRow}
