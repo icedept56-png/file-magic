@@ -524,3 +524,23 @@ Stage Summary:
 - Day 5 shipped: "কত ছোট হবে জানি না, কোয়ালিটি নষ্ট হয়ে যায়" is dead — users SEE the real predicted size and compare quality visually before committing the whole batch
 - Lesson: Radix Slider doesn't forward aria-label to the thumb — a11y wiring for sliders goes through Thumb-level props (Day 8)
 - Artifacts: compression-studio.tsx, .verify/{cs-mobile.png}
+
+---
+Task ID: 19
+Agent: main (Z.ai Code)
+Task: Day 6 (60-day roadmap) — Word এডিটর: write/edit docx in-browser, Bengali-safe, docx+PDF export
+
+Work Log:
+- Built src/components/file-hub/word-editor.tsx (editor view #11, tool id word-editor): contentEditable paper (Hind Siliguri, empty-state placeholder via .we-paper:empty::before) + toolbar (bold/italic/underline, H1/H2/P/blockquote, ul/ol, align L/C/R, clear formatting) via document.execCommand with onMouseDown preventDefault to keep selection; word counter (aria live via badge)
+- Import: .docx → mammoth convertToHtml → innerHTML; .txt/.md → double-newline paragraphs; script/style stripped on paste
+- docx export: DOMParser walk → docx lib — h1-h6→HeadingLevel, inline bold/italic/underline collected recursively, ul→bullet, ol→literal "N. " prefixes, blockquote→bullet, table→tab-joined rows, alignment from style/attr; runs carry font "Hind Siliguri"
+- PDF export: reused processors/docs wrapHtmlDoc + htmlToPdfBlob (both now exported) — same proven html2canvas-pro→jsPDF pipeline as text→pdf
+- Wired: registry entry (FileType2 icon, orange→amber, document category) + EDITOR_IDS + page.tsx EDITOR_VIEWS + i18n +30 we* keys; document category now ১১, TOOL_COUNT ৪২
+- E2E (agent-browser, real runs): composed document (H1 + Bengali paragraph with bold run + ordered list + centered line) → docx export 9894B PK → mammoth roundtrip proves h1/strong-Bengali/numbered items all intact; PDF export 46.5KB → extracted embedded page JPEG and VISUALLY verified (heading, bold Bengali, centered line render perfectly); docx re-import → editor innerHTML restores h1/Bengali/strong; EN (Word Editor/Bold/Word (.docx)); mobile 390px scrollWidth=390; home document category ১১
+- Known cosmetic: <ol> numbers don't paint in the raster-PDF path (html2canvas-pro skips markers) — numbers ARE correct in the docx export; noted for a future CSS list fix
+- Gates: eslint 0, tsc clean (src/), console clean, dev.log 200s
+
+Stage Summary:
+- Day 6 shipped: "docx বানাতে MS Word লাগে" is dead — full write/import/edit/export docx loop, 100% on-device, Bengali-first
+- word-editor exposes clean get/set via DOM — Day 7 undo wiring will snapshot innerHTML
+- Artifacts: word-editor.tsx, .verify/{we-export.docx,we-export.pdf,we-page1.jpg,we-mobile.png}
