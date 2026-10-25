@@ -544,3 +544,24 @@ Stage Summary:
 - Day 6 shipped: "docx বানাতে MS Word লাগে" is dead — full write/import/edit/export docx loop, 100% on-device, Bengali-first
 - word-editor exposes clean get/set via DOM — Day 7 undo wiring will snapshot innerHTML
 - Artifacts: word-editor.tsx, .verify/{we-export.docx,we-export.pdf,we-page1.jpg,we-mobile.png}
+
+---
+Task ID: 20
+Agent: main (Z.ai Code)
+Task: Day 7 (60-day roadmap) — ইউনিফাইড আন্ডো/রিডু: one history system across editors
+
+Work Log:
+- Created src/lib/use-history.ts: useEditorHistory<T>(initial, max=60) → {state, set (history point), undo, redo, reset (no point, new file), canUndo, canRedo} with ref-mirrored state (safe functional updaters) + useUndoRedoKeys (Ctrl/Cmd+Z undo, Ctrl+Shift+Z / Ctrl+Y redo) that NEVER hijacks text targets (input/textarea/select/contenteditable keep native undo)
+- Wired 3 editors:
+  1) page-manager — entries[] via history; object-URL lifecycle redesigned for undo-safety (URLs no longer revoked on entry removal — undo restores a deleted page with a LIVE thumbnail; URLs reclaimed only on file reload/unmount); visible আন্ডু/রিডু toolbar buttons
+  2) sheet-editor — WorkbookState via history (setWb aliased to hist.set; file load uses reset so imports clear history); buttons in grid toolbar; typing in cells stays native (isTextTarget guard)
+  3) scan-editor — pages[] via history (add photos/rotate/move/delete are undo points); undo/redo buttons joined the 4-button page-op grid; thumbs regenerate from state so undo re-renders cleanly
+- Text-native surfaces (word/markdown/ocr editors, pdf/image canvas) documented as keeping browser-native undo — the hook is the standard for state-owning editors going forward
+- i18n +2 urUndo/urRedo keys (bn/en); lint fix: react-hooks/refs forbade ref writes during render → moved into effect
+- E2E (agent-browser, real runs): page-manager delete→4, undo btn→5 (page-4 thumb ALIVE), redo→4, Ctrl+Z keyboard→5; sheet editor CSV (Bengali cells) cell edit রফিক→সেলিম + add row → undo1 drops the row, undo2 restores রফিক, redo brings সেলিম back; scan-editor rotate→undo→redo cycle clean, buttons gate on canUndo/canRedo; console clean
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 7 shipped: "ভুলে এক ক্লিকে কাজ নষ্ট" pain addressed in the three structured editors; history depth 60; text editors keep native undo by design
+- Lesson: react-hooks/refs (React 19 lint) blocks ref.current writes during render — assign in an effect
+- Artifacts: use-history.ts; edits in page-manager/sheet-editor/scan-editor
