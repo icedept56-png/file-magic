@@ -565,3 +565,24 @@ Stage Summary:
 - Day 7 shipped: "ভুলে এক ক্লিকে কাজ নষ্ট" pain addressed in the three structured editors; history depth 60; text editors keep native undo by design
 - Lesson: react-hooks/refs (React 19 lint) blocks ref.current writes during render — assign in an effect
 - Artifacts: use-history.ts; edits in page-manager/sheet-editor/scan-editor
+
+---
+Task ID: 21
+Agent: main (Z.ai Code)
+Task: Day 8 (60-day roadmap) — কীবোর্ড শর্টকাট + অ্যাক্সেসিবিলিটি অডিট
+
+Work Log:
+- Built src/components/file-hub/shortcut-layer.tsx (mounted once in page.tsx): global keys — "/" or Ctrl/Cmd+K focuses tool search (auto-returns home first if inside a tool; never hijacks text fields), "?" opens the shortcuts help dialog, Esc returns home from tool/editor views ONLY when no dialog owns the keystroke (guards: isTextTarget + [role=dialog][data-state=open] probe)
+- Shortcuts help dialog (shadcn Dialog): 8 bilingual rows (/ · Ctrl+K · ? · Esc · Ctrl+Z · Ctrl+Shift+Z · Enter/Space · Tab); also opened from a new navbar Keyboard icon button via "fm-open-shortcuts" custom event (openShortcutsHelp exported)
+- a11y audit + fixes:
+  1) Radix Slider thumbs had NO accessible name (Day 5 finding) → ui/slider.tsx now accepts thumbLabel + thumbValueText((v,i)=>string) forwarded to every Thumb (aria-label/aria-valuetext); wired into compression-studio (quality/max-edge), scan-editor (brightness/contrast), batch-studio (quality)
+  2) skip-to-content link added in page.tsx (sr-only, focus-visible emerald pill → #fm-main on <main>)
+  3) verified existing posture: aria-pressed tabs, role=checkbox page cards, compare-divider role=slider with aria-valuenow, 44px touch targets
+- i18n +9 sk* keys (bn/en)
+- E2E (agent-browser): "/" focuses search; Ctrl+K focuses search from home; "?" opens dialog (8 rows, bn title "কীবোর্ড শর্টকাট"); Esc closes dialog WITHOUT navigating, second Esc from editor returns home; navbar button opens dialog; EN dialog ("Keyboard shortcuts", "/ Search tools"); skip link + #fm-main target present; fresh reload console 0 errors/warnings
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 8 shipped: power users get /, Ctrl+K, ?, Esc + a discoverable shortcut list; screen readers get named sliders and a skip link
+- Design decision: Esc is dialog-first (never fights Radix); text fields keep native typing/undo semantics everywhere
+- Artifacts: shortcut-layer.tsx, ui/slider.tsx thumbLabel, .verify/sk-dialog.png
