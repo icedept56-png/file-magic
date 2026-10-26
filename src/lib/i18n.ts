@@ -772,6 +772,20 @@ const STR = {
     "Draw, type or upload an image — then place it",
   ],
 
+  // share & print (Day 20 — 60-day roadmap)
+  shShareAria: ["শেয়ার করুন", "Share"],
+  shPrintAria: ["প্রিন্ট করুন", "Print"],
+  shText: ["ফাইল ম্যাজিক অ্যাপে বানানো হয়েছে", "Made with the File Magic app"],
+  shFallback: [
+    "সরাসরি ফাইল শেয়ার এখানে নেই — হোয়াটসঅ্যাপ খুলেছে; আগে ফাইলটি ডাউনলোড করে পাঠান",
+    "Direct file sharing isn't available here — WhatsApp is open; download the file and attach it",
+  ],
+  shPrintPop: ["প্রিন্ট উইন্ডো খোলা হয়েছে", "Print window opened"],
+  shPopBlock: [
+    "প্রিন্ট উইন্ডো ব্লক হয়েছে — ব্রাউজারে পপ-আপ অনুমতি দিন",
+    "Print window blocked — allow pop-ups in your browser",
+  ],
+
   // footer
   footerLine: [
     "আপনার ফাইল আপনার ডিভাইসেই থাকে। কোনো আপলোড নেই, কোনো ট্র্যাকিং নেই।",

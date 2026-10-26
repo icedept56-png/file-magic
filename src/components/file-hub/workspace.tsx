@@ -19,8 +19,10 @@ import {
   Loader2,
   Music,
   Package,
+  Printer,
   RotateCcw,
   SearchX,
+  Share2,
   ShieldCheck,
   UploadCloud,
   Wand2,
@@ -47,6 +49,7 @@ import { downloadBlob, formatBytes } from "@/lib/tools/helpers";
 import { getTool } from "@/lib/tools/registry";
 import { checkOutput, preflightInputs } from "@/lib/tools/validate";
 import { recordActivity } from "@/lib/recents";
+import { canShareFile, isPrintable, printBlob, shareFile, waShareLink } from "@/lib/share";
 import { pick, useT } from "@/lib/i18n";
 import type { OutputFile, ToolOptionField } from "@/lib/tools/types";
 import { useAppStore } from "@/store/app-store";
@@ -281,6 +284,23 @@ export function Workspace() {
     setError(null);
     setProgress(0);
     setProgressLabel("");
+  };
+
+  // Day 20: share (native file share → WhatsApp fallback) + print
+  const shareResult = async (r: OutputFile) => {
+    const file = new File([r.blob], r.name, { type: r.blob.type || "application/octet-stream" });
+    if (canShareFile(file)) {
+      const res = await shareFile(file, t("shText"), r.name);
+      if (res === "shared" || res === "cancelled") return;
+    }
+    window.open(waShareLink(`${t("shText")} — ${r.name}`), "_blank", "noopener,noreferrer");
+    toast.info(t("shFallback"));
+  };
+
+  const printResult = (r: OutputFile) => {
+    const res = printBlob(r.blob, r.name);
+    if (res === "blocked") toast.error(t("shPopBlock"));
+    else toast.success(t("shPrintPop"));
   };
 
   /* ── fallback: unknown tool ─────────────────────────────────────────── */
@@ -697,6 +717,28 @@ export function Workspace() {
                       <AlertTriangle className="h-3 w-3" aria-hidden />
                       {t("qaBad")}
                     </span>
+                  )}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => void shareResult(r)}
+                    aria-label={t("shShareAria")}
+                    title={t("shShareAria")}
+                    className="h-9 w-9 shrink-0 rounded-lg text-emerald-900/55 hover:bg-emerald-600/10 hover:text-emerald-700"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                  {isPrintable(r.blob.type) && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => printResult(r)}
+                      aria-label={t("shPrintAria")}
+                      title={t("shPrintAria")}
+                      className="hidden h-9 w-9 shrink-0 rounded-lg text-emerald-900/55 hover:bg-emerald-600/10 hover:text-emerald-700 sm:inline-flex"
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
                   )}
                   <Button
                     size="sm"
