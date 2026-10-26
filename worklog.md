@@ -658,3 +658,34 @@ Stage Summary:
 - Zip-extract with a planted disguised file was the only natural way to make the "signature" branch render — better than a dev-only test hook; empty/signature logic additionally covered by checkOutput design review
 - Lesson: workspace seeding appends for multiple-tools — always click reset before re-seeding mid-test; agent-browser find-by-text goes stale after React re-renders (re-snapshot, click by ref)
 - Artifacts: validate.ts, .verify/{seed-qa.js, qa-en-mobile.png, we-lists.pdf, we-pg-000.jpg}
+
+---
+Task ID: 25
+Agent: main (Z.ai Code)
+Task: Day 12 (60-day roadmap) — ফেজ ১ গেট: full E2E regression suite, bug fixes, Phase 2 planning refresh
+
+Work Log:
+- Suite run in one browser session (bn default, desktop 1280 + mobile 390), .verify/tmp helper scripts:
+  • Home: category sum = ৪৫ (১২+৯+১৩+৪+২+৫), hero "৪৫ টি টুল", search+empty-state+clear all work (accidentally verified when a "?" typed into search filtered the grid to "কোনো টুল মেলেনি")
+  • Day 8 shortcuts: "/" focuses search, "?" opens the 8-row bilingual dialog ONLY when not in a text field (guard proven live), Esc closes dialog without navigation
+  • PDF core: merge 2 hand-built valid PDFs → merged.pdf (worker path intact) → downloaded blob re-seeded as File → split range 1 → merged-split.pdf; both outputs যাচাইকৃত; empty-range click correctly throws "কোনো বৈধ পেজ পাওয়া যায়নি"
+  • Day 11 raster path regression: text→pdf (Bengali 3 lines) → document.pdf 23.5KB যাচাইকৃত — listFix change did NOT regress plain documents
+  • Spreadsheet chain: CSV (Bengali) → sheet editor grid (9 cells) → edit রফিক→করিম → আন্ডু restores রফিক → রিডু brings করিম back (Day 7 unified history works); csv→xlsx → তালিকা.xlsx PK-verified
+  • Utilities: QR (Bengali URL → qr-code.png), JSON formatter (Bengali keys → formatted.json), image resize (1x1 png → 64px png)
+  • Batch studio: 3 synthetic JPEGs → compress → "৩ সফল ১৪% ছোট" + ZIP button
+  • Editor mount sweep: page-manager, image-editor, compression-studio, scanner, pdf-editor, markdown-editor, audio-editor, ocr-studio all render their h1 (11 editor views total incl. sheet/word/batch exercised above)
+  • Mobile 390: scrollWidth=390 no overflow, footer present; dev.log all 200; console clean
+- 🐞 BUG FOUND BY THE GATE (3 instances, 1 root cause): JSZip zip.generateAsync<"blob">({compression}) — the TS generic is type-level ONLY; runtime options lacked type:"blob" → JSZip threw "No output type specified."
+  1) data.ts createZip — ZIP বানান tool ALWAYS broken (every invocation)
+  2) data.ts xlsxToCsv multi-sheet path — combined-csv.zip broken
+  3) pdf.ts pdfToImages multi-page path — -pages.zip broken
+  Root cause likely a pre-Day-5 refactor that dropped the option while "hardening" types; single-file tests on other days hit different branches (or blob-typed fallbacks) and missed it.
+  FIX: { type: "blob", compression: ... } in all three; E2E re-verified: archive.zip 388B ✓, merged-pages.zip 21KB (2 pages rendered) ✓, combined-csv.zip 432B ✓ — all যাচাইকৃত (PK magic)
+- Roadmap refreshed: Phase-1 gate results block added above Phase 2 (docs/ROADMAP-60-DAYS.md) with D13/D14/D15/D23 dependency notes
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- PHASE 1 COMPLETE (Days 1-12): product core shipped — scanner+OCR+batch+page-manager+compression studio+word editor+undo+shortcuts/a11y+worker perf+format blitz+output QA, gated green
+- The gate earned its keep: a fully-broken headline tool (ZIP বানান) that lint+tsc+partial tests missed is now fixed with evidence
+- Lesson: TS generics are NOT runtime options (generateAsync<"blob"> vs {type:"blob"}); chain real outputs back in as inputs (merge→split, xlsx→csv) to test seams between tools; editors unmount their file input after load — seed scripts must re-check intake presence
+- Artifacts: data.ts/pdf.ts fixes, ROADMAP gate block, .verify/qa scripts
