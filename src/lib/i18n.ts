@@ -582,6 +582,15 @@ const STR = {
   ],
   ofDismiss: ["বার্তা বন্ধ করুন", "Dismiss message"],
 
+  // template gallery (Day 17 — 60-day roadmap)
+  tpTitle: ["দ্রুত টেমপ্লেট", "Quick templates"],
+  tpSub: [
+    "সাধারণ কাজগুলো এক ক্লিকে — সেটিংস আগেই সাজানো",
+    "Common jobs in one click — settings already arranged",
+  ],
+  tpAria: ["দ্রুত টেমপ্লেট গ্যালারি", "Quick template gallery"],
+  tpStart: ["শুরু করুন", "Start"],
+
   // help center + feedback (Day 16 — 60-day roadmap)
   hcTitle: ["সহায়তা কেন্দ্র", "Help center"],
   hcSub: ["সাধারণ প্রশ্নের উত্তর আর মতামত জানানোর পথ", "Answers to common questions — and a way to tell us"],

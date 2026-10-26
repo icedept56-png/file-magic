@@ -246,6 +246,15 @@ export function ScanEditor() {
   useUndoRedoKeys(pagesHist);
   const [cur, setCur] = useState(0);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+
+  // Day 17: template handoff — the gallery can seed a preset (e.g. NID → gray)
+  useEffect(() => {
+    const h = useAppStore.getState().templateHandoff;
+    if (h && h.toolId === "document-scan") {
+      if (h.preset) setSettings((s) => ({ ...s, preset: h.preset as Settings["preset"] }));
+      useAppStore.getState().setTemplateHandoff(null);
+    }
+  }, []);
   const [thumbs, setThumbs] = useState<{ id: string; url: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState<null | "pdf" | "jpg">(null);

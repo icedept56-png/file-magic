@@ -9,6 +9,7 @@ import { Navbar } from "@/components/file-hub/navbar";
 import { Hero } from "@/components/file-hub/hero";
 import { RecentTools } from "@/components/file-hub/recent-tools";
 import { RecentActivity } from "@/components/file-hub/recent-activity";
+import { TemplateGallery } from "@/components/file-hub/template-gallery";
 import { EditorSpotlight } from "@/components/file-hub/editor-spotlight";
 import { FeaturedTools } from "@/components/file-hub/featured-tools";
 import { CategoryTabs } from "@/components/file-hub/category-tabs";
@@ -84,6 +85,7 @@ export default function Home() {
                 <Hero />
                 <RecentTools />
                 <RecentActivity />
+                <TemplateGallery />
                 <EditorSpotlight />
                 <FeaturedTools />
                 <CategoryTabs />

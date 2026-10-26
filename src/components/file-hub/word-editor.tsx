@@ -204,6 +204,17 @@ export function WordEditor() {
     recount();
   }, [recount]);
 
+  // Day 17: template handoff — the gallery can seed starter content (CV skeleton)
+  useEffect(() => {
+    const h = useAppStore.getState().templateHandoff;
+    if (h && h.toolId === "word-editor" && edRef.current) {
+      if (h.html) edRef.current.innerHTML = h.html;
+      if (h.docName) setDocName(h.docName);
+      useAppStore.getState().setTemplateHandoff(null);
+      recount();
+    }
+  }, [recount]);
+
   const exec = (cmd: string, value?: string) => {
     edRef.current?.focus();
     document.execCommand(cmd, false, value);

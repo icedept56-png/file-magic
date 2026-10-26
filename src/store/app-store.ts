@@ -59,6 +59,8 @@ interface AppState {
   ocrHandoff: File[];
   /** one-shot option snapshot for "চালিয়ে যাওয়া" (resume) from recent activity */
   resumeOpts: { toolId: string; opts: Record<string, string | number | boolean> } | null;
+  /** one-shot template payload for editor tools (gallery → editor seeding) */
+  templateHandoff: { toolId: string; html?: string; preset?: string; docName?: string } | null;
   openTool: (id: string) => void;
   goHome: () => void;
   setSearch: (s: string) => void;
@@ -68,6 +70,7 @@ interface AppState {
   setLang: (l: Lang) => void;
   setOcrHandoff: (files: File[]) => void;
   setResumeOpts: (r: { toolId: string; opts: Record<string, string | number | boolean> } | null) => void;
+  setTemplateHandoff: (h: { toolId: string; html?: string; preset?: string; docName?: string } | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -79,6 +82,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   lang: "bn",
   ocrHandoff: [],
   resumeOpts: null,
+  templateHandoff: null,
   openTool: (id) => {
     // keep the user's search/category so returning home restores their context
     get().recordRecent(id);
@@ -127,4 +131,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setOcrHandoff: (files) => set({ ocrHandoff: files }),
   setResumeOpts: (resumeOpts) => set({ resumeOpts }),
+  setTemplateHandoff: (templateHandoff) => set({ templateHandoff }),
 }));
