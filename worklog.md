@@ -887,3 +887,29 @@ Stage Summary:
 - Day 23 shipped: "এররে কাজ হারায়" closed from three sides — crashes land on a branded bilingual recovery screen, tool failures offer one-tap retry with inputs intact, and typed text survives exits; drafts auto-clean so they never become ghosts
 - Lesson: debounce vs fast-completion is a classic race — any "clear after success" must dominate scheduled saves (guard with the success state itself)
 - Artifacts: error.tsx, global-error.tsx, workspace draft/retry/guard
+
+---
+Task ID: 37
+Agent: main (Z.ai Code)
+Task: Day 24 (Phase 2 — 60-day roadmap) — ফেজ ২ গেট: usability স্ক্রিপ্ট + ফাইন্ডিং ফিক্স
+
+Work Log:
+- Usability script (fresh-profile new-user simulation, bn, desktop 1280):
+  1) first visit → onboarding tour auto-opens → walked all 5 steps (সার্চ→প্রাইভেসি→জনপ্রিয়→সব টুল→শর্টকাট) → শুরু করি! → flag=1 → done
+  2) gibberish search → "কোনো টুল মেলেনি" + জন্প্রিয় টুল suggestion cards
+  3) text→pdf run → "কাজ শেষ!" banner with self-drawn check + Share/Print buttons on the row
+  4) home → সাম্প্রতিক কাজ row exists → resume re-opens tool with text pre-filled
+  5) পাসপোর্ট ছবি template → ইমেজ রিসাইজ opens pre-set 413×531
+  6) help center → FAQ tab → feedback tab (pointer click) → rate+message → পাঠান → ধন্যবাদ + fm-feedback-list=1
+- Editor mount sweep: all 13 views open by search — pdf-editor, image-editor, sheet-editor(স্প্রেডশিট এডিটর), markdown-editor, audio-editor, page-manager, document-scan, ocr-studio, batch-studio, compression-studio, word-editor, cv-builder, signature-studio ✓
+- EN spot check ("Jump right in", 47 tools), mobile 390 (sw=390, footer, hero ৪৭), console 0 errors, dev.log all 200s
+- Offline regression: ?fm-sw=1 → SW controlled, cache 70 entries incl. ben+eng tessdata warm → set offline → reload → full render + offline banner ✓
+- FINDINGS: zero new app defects. (a) stale FAQ tool count was already fixed in the Day-22 copy pass; (b) test-harness notes only — Radix TabsTrigger ignores JS .click() (needs pointer events) and my loop's home-first branch skipped navs (harness, not app)
+- Roadmap updated with ফেজ ২ গেট results block + Phase-3 refresh notes (Prisma/Neon D25, OAuth keys needed before D26, merchant keys before D31)
+- Gates: eslint 0
+
+Stage Summary:
+- PHASE 2 COMPLETE (Days 13-24): অভিজ্ঞতা ও আস্থা shipped — onboarding, resume-able history, full offline PWA, help+feedback, one-click templates, CV builder, signature studio, share/print, haptic+motion polish, professional Bengali, error resilience — all gated green with ZERO new defects at the gate
+- TOOLS ৪৫→৪৭; editor views ১১→১৩; every day pushed (Vercel auto-deploy) and logged (Tasks 26-37)
+- Lesson: gate scripts pay for themselves — but this time the gate confirmed rather than caught, which is the outcome you want the day before the business phase starts
+- Artifacts: ROADMAP gate block, .verify/d24-gate.png
