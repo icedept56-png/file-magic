@@ -707,3 +707,21 @@ Stage Summary:
 - Phase 2 started (Day 13 of 13-24); push 6558e14 → Vercel auto-deploy
 - Lesson: react-hooks/refs forbids ref writes during render — drop langRef mirrors, useT() already re-renders; set-state-in-effect guard → prefer render-guards over rect resets
 - Artifacts: onboarding-tour.tsx, registry suggestTools, .verify/d13-{tour,mobile}.png
+
+---
+Task ID: 27
+Agent: main (Z.ai Code)
+Task: Day 14 (Phase 2 — 60-day roadmap) — সাম্প্রতিক ফাইল (IndexedDB) + কাজ চালিয়ে যাওয়া
+
+Work Log:
+- NEW src/lib/recents.ts — IndexedDB "fm-recents/activity" (metadata ONLY, per Phase-1 gate note): recordActivity (60s de-dup, auto-prune to 20), getActivity/deleteActivity/clearActivity, relTime() bilingual relative time (এইমাত্র/৫ মিনিট আগে/গতকাল/…); every fn resolves null-safe (private mode / IDB blocked → silent no-op)
+- NEW src/components/file-hub/recent-activity.tsx — home "সাম্প্রতিক কাজ" grid (up to 6): tool icon/name, relative-time pill, file-name summary or text-input marker, "N টি ফাইল · size · N টি আউটপুট"; click = resume (setResumeOpts + openTool); "সব মুছুন" clear-all; reloads on every home entry (store.subscribe view change)
+- Workspace: runProcess success now records {toolId, first-4 file names, count, bytes, outputs, opts snapshot, capped text for text-tools}; tool-change effect applies resumeOpts overrides (only keys present in tool.options) then clears — one-shot, never cross-contaminates
+- app-store: +resumeOpts/setResumeOpts; page.tsx mounts RecentActivity between RecentTools and EditorSpotlight; i18n +9 ra* keys
+- E2E (agent-browser, real runs): text→pdf run → home section appears ("টেক্সট → পিডিএফ · এইমাত্র · টেক্সট ইনপুট · ১ টি আউটপুট"); resume click → tool re-opens with EXACT text pre-filled; ইমেজ রিসাইজ file run (seeded 64px PNG named ছবি-টেস্ট.png) → row "ছবি-টেস্ট.png · ১ টি ফাইল · 280 B · ১ টি আউটপুট", resume pre-fills width=32; সব মুছুন → section gone, IDB count=0 (probed); EN ("Recent activity", "just now", "Text input · 1 outputs"); mobile 390 sw=390; console 0; dev.log 200s
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 14 shipped: "আগের কাজ হারিয়ে যায়" fixed — every successful run is now a one-tap resume point with settings remembered; privacy story intact (names/counts/sizes only, contents never stored)
+- Lesson: card-click test selectors must use the EXACT registry name (ইমেজ রিসাইজ, not ছবি রিসাইজ); search-by-keyword matches many tools (pdf-extract-text matches "text") — disambiguate by full name
+- Artifacts: recents.ts, recent-activity.tsx, .verify/d14-activity.png
