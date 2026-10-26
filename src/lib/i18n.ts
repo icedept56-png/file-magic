@@ -786,6 +786,11 @@ const STR = {
     "Print window blocked — allow pop-ups in your browser",
   ],
 
+  // error resilience (Day 23 — 60-day roadmap)
+  erRetry: ["আবার চেষ্টা করুন", "Try again"],
+  erDraftRestored: ["আগের লেখা ফিরিয়ে আনা হয়েছে", "Your previous text was restored"],
+  erDraftSaved: ["লেখা সেভ হয়েছে", "Text saved"],
+
   // footer
   footerLine: [
     "আপনার ফাইল আপনার ডিভাইসেই থাকে। কোনো আপলোড নেই, কোনো ট্র্যাকিং নেই।",

@@ -105,11 +105,25 @@ export function Workspace() {
     if (!tool) return;
     const base = defaultOpts(tool);
     const resume = useAppStore.getState().resumeOpts;
+    let restoredDraft = false;
     if (resume && resume.toolId === tool.id) {
       for (const f of tool.options) {
         if (f.key in resume.opts && resume.opts[f.key] !== "") base[f.key] = resume.opts[f.key];
       }
       useAppStore.getState().setResumeOpts(null);
+    }
+    // Day 23: text-input drafts survive accidental exits (per tool, local only)
+    if (tool.inputMode !== "file") {
+      try {
+        const raw = window.localStorage.getItem(`fm-draft-text-${tool.id}`);
+        const d = raw ? (JSON.parse(raw) as { text?: unknown }) : null;
+        if (d && typeof d.text === "string" && d.text.trim()) {
+          if (!(resume && resume.toolId === tool.id && "text" in resume.opts)) base.text = d.text;
+          restoredDraft = true;
+        }
+      } catch {
+        /* ignore bad drafts */
+      }
     }
     setFiles([]);
     setOpts(base);
@@ -120,6 +134,7 @@ export function Workspace() {
     setProgressLabel("");
     setBusy(false);
     setZipping(false);
+    if (restoredDraft) toast.info(t("erDraftRestored"));
   }, [tool]);
 
   // a dropped file outside the dropzone must never navigate the browser away
@@ -132,6 +147,35 @@ export function Workspace() {
       window.removeEventListener("drop", prevent);
     };
   }, []);
+
+  // Day 23: warn before leaving while a job is running
+  useEffect(() => {
+    if (!busy) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [busy]);
+
+  // Day 23: autosave the typed text per tool (debounced, local-only).
+  // Skip once results exist — a finished job must not resurrect its draft
+  // (fast tools finish before the debounce fires).
+  useEffect(() => {
+    if (!tool || tool.inputMode === "file" || results) return;
+    const key = `fm-draft-text-${tool.id}`;
+    const id = setTimeout(() => {
+      try {
+        const text = String(opts["text"] ?? "");
+        if (text.trim()) window.localStorage.setItem(key, JSON.stringify({ text }));
+        else window.localStorage.removeItem(key);
+      } catch {
+        /* private mode */
+      }
+    }, 800);
+    return () => clearTimeout(id);
+  }, [tool, opts, results]);
 
   const addFiles = (list: FileList | null) => {
     if (!tool || !list || list.length === 0) return;
@@ -207,6 +251,14 @@ export function Workspace() {
       setResults(out);
       toast.success(t("doneToast"));
       haptic("success");
+      // job succeeded → the draft did its job, clear it
+      if (tool.inputMode !== "file") {
+        try {
+          window.localStorage.removeItem(`fm-draft-text-${tool.id}`);
+        } catch {
+          /* ignore */
+        }
+      }
       // Day 14: remember this run (metadata only — never file contents) so
       // the home screen can offer "চালিয়ে যাওয়া" (resume) later
       void recordActivity({
@@ -286,6 +338,13 @@ export function Workspace() {
     setError(null);
     setProgress(0);
     setProgressLabel("");
+    if (tool) {
+      try {
+        window.localStorage.removeItem(`fm-draft-text-${tool.id}`);
+      } catch {
+        /* ignore */
+      }
+    }
   };
 
   // Day 20: share (native file share → WhatsApp fallback) + print
@@ -626,7 +685,20 @@ export function Workspace() {
           >
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>{t("errTitle")}</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>
+              {error}
+              <span className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void runProcess()}
+                  className="h-9 border-red-500/30 bg-white text-red-700 hover:bg-red-50"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {t("erRetry")}
+                </Button>
+              </span>
+            </AlertDescription>
           </Alert>
         )}
 
