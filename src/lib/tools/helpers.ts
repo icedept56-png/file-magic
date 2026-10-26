@@ -19,6 +19,8 @@ export function formatBytes(bytes: number): string {
 
 /** Trigger a browser download for a blob */
 export function downloadBlob(blob: Blob, name: string): void {
+  // Day 21: subtle confirmation buzz on every successful download
+  import("@/lib/haptics").then((m) => m.haptic("light")).catch(() => {});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

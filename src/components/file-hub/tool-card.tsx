@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 
 import { CATEGORIES } from "@/lib/tools/registry";
+import { haptic } from "@/lib/haptics";
 import { pick, useT } from "@/lib/i18n";
 import type { ToolDef } from "@/lib/tools/types";
 import { useAppStore } from "@/store/app-store";
@@ -24,7 +25,10 @@ export function ToolCard({ tool }: ToolCardProps) {
       type="button"
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
-      onClick={() => openTool(tool.id)}
+      onClick={() => {
+        haptic("select");
+        openTool(tool.id);
+      }}
       aria-label={`${pick(lang, tool.name, tool.nameEn)} — ${pick(lang, tool.desc, tool.descEn)}`}
       style={{ "--glow": tool.glow } as React.CSSProperties}
       className="fm-card fm-card-hover group relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl p-4 text-left outline-none transition-all focus-visible:ring-2 focus-visible:ring-emerald-500/60 hover:shadow-[0_18px_40px_-16px_var(--glow)] sm:p-5"

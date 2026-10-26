@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   Archive,
   ArrowLeft,
-  CheckCircle2,
   Download,
   File as FileIcon,
   FileDown,
@@ -50,6 +49,7 @@ import { getTool } from "@/lib/tools/registry";
 import { checkOutput, preflightInputs } from "@/lib/tools/validate";
 import { recordActivity } from "@/lib/recents";
 import { canShareFile, isPrintable, printBlob, shareFile, waShareLink } from "@/lib/share";
+import { haptic } from "@/lib/haptics";
 import { pick, useT } from "@/lib/i18n";
 import type { OutputFile, ToolOptionField } from "@/lib/tools/types";
 import { useAppStore } from "@/store/app-store";
@@ -206,6 +206,7 @@ export function Workspace() {
       if (!out?.length) throw new Error(t("noOutputErr"));
       setResults(out);
       toast.success(t("doneToast"));
+      haptic("success");
       // Day 14: remember this run (metadata only — never file contents) so
       // the home screen can offer "চালিয়ে যাওয়া" (resume) later
       void recordActivity({
@@ -235,6 +236,7 @@ export function Workspace() {
       const msg = e instanceof Error ? e.message : t("genericErr");
       setError(msg);
       toast.error(msg);
+      haptic("error");
     } finally {
       setBusy(false);
       setProgressLabel("");
@@ -667,7 +669,29 @@ export function Workspace() {
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
               <span className="relative flex h-5 w-5 shrink-0 items-center justify-center">
                 <span className="fm-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
-                <CheckCircle2 className="relative h-5 w-5 text-emerald-600" />
+                {/* Day 21: check mark draws itself in — small premium cue */}
+                <svg viewBox="0 0 24 24" className="relative h-5 w-5" fill="none" aria-hidden="true">
+                  <motion.circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="#059669"
+                    strokeWidth="2.2"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                  />
+                  <motion.path
+                    d="m7.5 12.5 3 3 6-6.5"
+                    stroke="#059669"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.35, delay: 0.3, ease: "easeOut" }}
+                  />
+                </svg>
               </span>
               {t("doneBanner")}
               {savedPct > 0 && (
@@ -681,8 +705,11 @@ export function Workspace() {
               {results.map((r, i) => {
                 const ok = checks?.[i];
                 return (
-                <div
+                <motion.div
                   key={`${r.name}-${i}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, delay: Math.min(i * 0.05, 0.4) }}
                   className="flex items-center gap-3 rounded-xl border border-emerald-900/[0.07] bg-white px-3 py-2 shadow-sm"
                 >
                   {ok === false ? (
@@ -748,7 +775,7 @@ export function Workspace() {
                     <Download className="h-4 w-4" />
                     {t("download")}
                   </Button>
-                </div>
+                </motion.div>
                 );
               })}
             </div>

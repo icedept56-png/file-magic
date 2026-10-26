@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { downloadBlob } from "@/lib/tools/helpers";
+import { haptic } from "@/lib/haptics";
 import { useT } from "@/lib/i18n";
 import { useAppStore, type Lang } from "@/store/app-store";
 
@@ -247,6 +248,7 @@ export function CvBuilder() {
       const blob = await htmlToPdfBlob(buildCvHtml(data), (p) => setPct(Math.max(pct, p)));
       downloadBlob(blob, `${data.name.trim() || "cv"}.pdf`);
       toast.success(t("cvPdfDone"));
+      haptic("success");
     } catch {
       toast.error(t("genericErr"));
     } finally {

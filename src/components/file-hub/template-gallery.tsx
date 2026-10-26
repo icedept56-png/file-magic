@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { TEMPLATES, templateText } from "@/lib/templates";
 import { getTool } from "@/lib/tools/registry";
+import { haptic } from "@/lib/haptics";
 import { pick, useT } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 
@@ -19,6 +20,7 @@ export function TemplateGallery() {
   const apply = (tpl: (typeof TEMPLATES)[number]) => {
     const tool = getTool(tpl.toolId);
     if (!tool) return;
+    haptic("select");
     if (tpl.opts) setResumeOpts({ toolId: tpl.toolId, opts: tpl.opts });
     if (tpl.editor) setTemplateHandoff({ toolId: tpl.toolId, ...tpl.editor });
     openTool(tpl.toolId);
@@ -43,12 +45,14 @@ export function TemplateGallery() {
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {TEMPLATES.map((tpl) => (
-          <button
+          <motion.button
             key={tpl.id}
             type="button"
+            whileHover={{ y: -3 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => apply(tpl)}
             aria-label={`${templateText(lang, tpl.name)} — ${templateText(lang, tpl.desc)}`}
-            className="group flex h-full flex-col rounded-2xl border border-emerald-900/[0.07] bg-white p-3.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-600/25 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+            className="group flex h-full flex-col rounded-2xl border border-emerald-900/[0.07] bg-white p-3.5 text-left shadow-sm transition-colors hover:border-emerald-600/25 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
           >
             <span className={`grid h-9 w-9 place-items-center rounded-xl shadow-sm ${tpl.gradient}`}>
               <tpl.icon className="h-4.5 w-4.5 text-white" />
@@ -63,7 +67,7 @@ export function TemplateGallery() {
               {t("tpStart")}
               <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
             </span>
-          </button>
+          </motion.button>
         ))}
       </div>
     </motion.section>

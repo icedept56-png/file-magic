@@ -1,11 +1,13 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { Languages } from "lucide-react";
 
+import { haptic } from "@/lib/haptics";
 import { useT } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 
-/** Segmented বাংলা ⇄ English switcher */
+/** Segmented বাংলা ⇄ English switcher with a sliding active pill (Day 21) */
 export function LanguageToggle() {
   const { lang } = useT();
   const setLang = useAppStore((s) => s.setLang);
@@ -28,15 +30,24 @@ export function LanguageToggle() {
           <button
             key={id}
             type="button"
-            onClick={() => setLang(id)}
+            onClick={() => {
+              if (!active) haptic("select");
+              setLang(id);
+            }}
             aria-pressed={active}
-            className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
-              active
-                ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm shadow-emerald-500/30"
-                : "text-emerald-900/60 hover:text-emerald-800"
+            className={`relative rounded-full px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+              active ? "text-white" : "text-emerald-900/60 hover:text-emerald-800"
             }`}
           >
-            {label}
+            {active && (
+              <motion.span
+                layoutId="fm-lang-pill"
+                transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                aria-hidden="true"
+                className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 shadow-sm shadow-emerald-500/30"
+              />
+            )}
+            <span className="relative">{label}</span>
           </button>
         );
       })}

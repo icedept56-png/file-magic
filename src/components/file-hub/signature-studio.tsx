@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { downloadBlob, safeName, stripExt } from "@/lib/tools/helpers";
+import { haptic } from "@/lib/haptics";
 import { useT } from "@/lib/i18n";
 import { useAppStore } from "@/store/app-store";
 import { SignaturePad } from "./signature-pad";
@@ -137,6 +138,7 @@ export function SignatureStudio() {
   /* ── stamps ── */
   const addStamp = (dataUrl: string) => {
     setSigOpen(false);
+    haptic("light");
     setStamps((s) => [
       ...s,
       { id: nextId.current++, dataUrl, x: 0.5, y: 0.62, w: 0.26, page: doc?.kind === "pdf" ? page : 0 },
@@ -210,6 +212,7 @@ export function SignatureStudio() {
         const out = await pdf.save();
         downloadBlob(new Blob([out as BlobPart], { type: "application/pdf" }), `${stripExt(safeName(doc.name))}-signed.pdf`);
         toast.success(t("sgDonePdf"));
+        haptic("success");
       } else {
         const c = canvasRef.current!;
         const ctx = c.getContext("2d")!;
@@ -228,6 +231,7 @@ export function SignatureStudio() {
         const out = await new Promise<Blob>((res) => c.toBlob((b) => res(b!), "image/png"));
         downloadBlob(out, `${stripExt(safeName(doc.name))}-signed.png`);
         toast.success(t("sgDoneImg"));
+        haptic("success");
       }
     } catch {
       toast.error(t("genericErr"));

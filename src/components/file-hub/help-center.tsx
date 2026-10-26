@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { haptic } from "@/lib/haptics";
 import { useT, type StrKey } from "@/lib/i18n";
 
 /** ⚠️ owner: replace with the real inbox before launch */
@@ -113,6 +114,7 @@ export function HelpCenter() {
       toast.error(t("fbPickRating"));
       return;
     }
+    haptic("success");
     const entry: FeedbackEntry = {
       at: Date.now(),
       rating,
@@ -126,6 +128,7 @@ export function HelpCenter() {
   const copyReport = async (entry: FeedbackEntry) => {
     try {
       await navigator.clipboard.writeText(composeText(entry));
+      haptic("light");
       toast.success(t("fbCopied"));
     } catch {
       toast.error(t("fbCopyFail"));

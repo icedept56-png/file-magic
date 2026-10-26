@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 
 import { useAppStore } from "@/store/app-store";
 import { Background } from "@/components/file-hub/background";
@@ -59,7 +59,8 @@ export default function Home() {
   const EditorView = activeToolId ? EDITOR_VIEWS[activeToolId] : undefined;
 
   return (
-    <div className="relative flex min-h-screen bg-background text-foreground">
+    <MotionConfig reducedMotion="user">
+      <div className="relative flex min-h-screen bg-background text-foreground">
       <Background />
       <HistorySync />
       {/* a11y: keyboard users jump straight to the content (Day 8) */}
@@ -123,5 +124,6 @@ export default function Home() {
       </div>
       <OfflineBanner />
     </div>
+    </MotionConfig>
   );
 }
