@@ -832,3 +832,20 @@ Stage Summary:
 - Day 20 shipped: "ফাইল পাঠানো ঝামেলা" softened — outputs can now jump straight into the user's share sheet (real files on mobile) or WhatsApp, and PDFs/images print directly from the result row without downloading first
 - Lesson: wa.me deep links carry TEXT only — files must be attached by the user after download (messaging made explicit in the fallback toast); headless window.open hijacks the tab, so test share links via resulting URL
 - Artifacts: share.ts, workspace.tsx result row, .verify via agent-browser
+
+---
+Task ID: 34
+Agent: main (Z.ai Code)
+Task: Day 21 (Phase 2 — 60-day roadmap) — মাইক্রো-ইন্টারঅ্যাকশন পলিশ + হ্যাপটিক ফিডব্যাক
+
+Work Log:
+- NEW src/lib/haptics.ts — Vibration API cues: select(8ms: cards/toggles), light(12ms: downloads/stamps), success([12,40,18]: job done), error([24,50,24]); guarded no-op (iOS/no-API); wired into tool-card open, template apply, workspace success/error, downloadBlob (single point → every download buzzes), signature stamp/export, CV export, feedback submit/copy
+- page.tsx wrapped in <MotionConfig reducedMotion="user"> — every framer-motion animation now respects prefers-reduced-motion globally
+- Micro-interactions: language toggle got a spring sliding pill (layoutId fm-lang-pill) instead of two static chips; workspace done-banner check now DRAWS itself (motion circle+path pathLength); result rows stagger in (50ms cascade, capped 400ms); template cards whileHover lift + whileTap press; recent-activity/toast rhythm unchanged
+- E2E (agent-browser): run text→pdf → banner renders with the drawn SVG check (motion.circle present) + banner text; language switch works with pill span behind active label (aria-pressed correct, hero flips to EN); navigator.vibrate exists in Chromium (haptics active on Android; iOS no-ops by design); mobile 390 sw=390; console 0
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 21 shipped: the app stops feeling "সস্তা" — touches buzz, success states draw, results cascade, the language pill glides; all motion collapses to zero for reduced-motion users via one MotionConfig
+- Lesson: put the haptic at the single chokepoint (downloadBlob) rather than every caller; MotionConfig is the cheapest global a11y win in a framer-motion app
+- Artifacts: haptics.ts, language-toggle pill, workspace banner/rows
