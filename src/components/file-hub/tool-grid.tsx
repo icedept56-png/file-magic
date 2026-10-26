@@ -2,11 +2,11 @@
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { SearchX } from "lucide-react";
+import { SearchX, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
-import { filterTools } from "@/lib/tools/registry";
+import { filterTools, suggestTools, popularTools } from "@/lib/tools/registry";
 import { useAppStore } from "@/store/app-store";
 import { ToolCard } from "@/components/file-hub/tool-card";
 
@@ -21,6 +21,14 @@ export function ToolGrid() {
     () => filterTools(search, category),
     [search, category]
   );
+
+  // smart empty state (Day 13): intent-aware suggestions, popular tools as fallback
+  const suggestions = useMemo(
+    () => (filtered.length === 0 ? (suggestTools(search).length ? suggestTools(search) : popularTools()) : []),
+    [filtered.length, search]
+  );
+  const suggestLabel =
+    suggestions.length > 0 && suggestTools(search).length === 0 ? t("sePopular") : t("seMaybe");
 
   return (
     <section id="tools" className="mt-10 scroll-mt-24">
@@ -53,6 +61,20 @@ export function ToolGrid() {
             >
               {t("seeAll")}
             </Button>
+
+            {suggestions.length > 0 && (
+              <div className="mt-8 text-left">
+                <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-800/80">
+                  <Sparkles className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                  {suggestLabel}
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {suggestions.map((tool) => (
+                    <ToolCard key={tool.id} tool={tool} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">

@@ -1295,3 +1295,60 @@ export const TOOL_COUNT = TOOLS.length;
 export function isEditorTool(id: string): boolean {
   return EDITOR_IDS.includes(id);
 }
+
+// ─── smart suggestions (Day 13 — 60-day roadmap) ────────────────────────────
+
+/** everyday intents → most likely tools (bengali phrasing first) */
+const SUGGEST_ALIAS: [RegExp, string[]][] = [
+  [/ছোট|সাইজ|কম্প্রেস|compress|shrink|smaller/i, ["compression-studio", "image-compress", "compress-pdf"]],
+  [/স্ক্যান|নিড|এনআইডি|scan|nid|document photo/i, ["document-scan", "ocr-studio"]],
+  [/লেখা|টেক্সট|তুলে|ocr|copy text|extract text/i, ["ocr-studio", "pdf-extract-text"]],
+  [/মার্জ|জোড়া|একসাথে|merge|combine/i, ["merge-pdf", "batch-studio"]],
+  [/ভাগ|স্প্লিট|আলাদা|split|separate/i, ["split-pdf", "pdf-to-image"]],
+  [/ওয়ার্ড|সিভি|সিভি|word|docx|cv|resume/i, ["word-editor", "pdf-to-docx", "docx-to-pdf"]],
+  [/এক্সেল|শিট|excel|sheet|csv|xlsx/i, ["xlsx-to-csv", "csv-to-xlsx", "sheet-editor"]],
+  [/জিপ|আর্কাইভ|zip|archive|extract/i, ["zip-create", "zip-extract"]],
+  [/কিউআর|qr/i, ["qr-generator"]],
+  [/ঘোরাও|রোটেট|ঘোরান|rotate/i, ["rotate-pdf", "image-rotate"]],
+  [/ওয়াটারমার্ক|watermark/i, ["pdf-watermark", "image-watermark"]],
+  [/হেক|আইফোন|heic|iphone photo/i, ["heic-convert"]],
+  [/রিসাইজ|মাপ|resize|dimension/i, ["image-resize"]],
+  [/সাইন|স্বাক্ষর|sign|signature/i, ["pdf-editor"]],
+  [/রিডাক্ট|লুকান|redact|black out/i, ["pdf-editor"]],
+  [/ফরম্যাট|সুন্দর|format|beautify|json/i, ["json-format"]],
+  [/পিডিএফ|pdf/i, ["pdf-editor", "merge-pdf", "compress-pdf"]],
+  [/ছবি|ফটো|image|photo|jpg|png|webp/i, ["image-convert", "image-compress"]],
+  [/মার্কডাউন|markdown|md/i, ["markdown-editor", "markdown-to-html"]],
+  [/স্প্রেডশিট|টেবিল|spreadsheet|table/i, ["sheet-editor", "csv-to-xlsx"]],
+];
+
+/** shown when even suggestions find nothing sensible */
+export const POPULAR_TOOL_IDS = ["document-scan", "merge-pdf", "compression-studio", "ocr-studio"];
+
+export function popularTools(max = 3): ToolDef[] {
+  return POPULAR_TOOL_IDS.map((id) => getTool(id)).filter((t): t is ToolDef => !!t).slice(0, max);
+}
+
+/** "did you mean" — alias table first, then token scoring over all tool text */
+export function suggestTools(query: string, max = 3): ToolDef[] {
+  const q = query.trim();
+  if (!q) return [];
+  for (const [re, ids] of SUGGEST_ALIAS) {
+    if (re.test(q)) {
+      const hits = ids.map((id) => getTool(id)).filter((t): t is ToolDef => !!t);
+      if (hits.length) return hits.slice(0, max);
+    }
+  }
+  const tokens = q.toLowerCase().split(/\s+/).filter((tok) => tok.length >= 2);
+  if (!tokens.length) return [];
+  return TOOLS.map((tool) => {
+    const hay = `${tool.name} ${tool.nameEn} ${tool.desc} ${tool.descEn ?? ""} ${(tool.keywords ?? []).join(" ")} ${tool.id}`.toLowerCase();
+    let score = 0;
+    for (const tok of tokens) if (hay.includes(tok)) score++;
+    return { tool, score };
+  })
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, max)
+    .map((s) => s.tool);
+}

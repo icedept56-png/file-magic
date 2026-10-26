@@ -8,6 +8,7 @@ import { useAppStore } from "@/store/app-store";
 import { PwaInstaller } from "@/components/file-hub/pwa-installer";
 import { LanguageToggle } from "@/components/file-hub/language-toggle";
 import { openShortcutsHelp } from "@/components/file-hub/shortcut-layer";
+import { TourButton } from "@/components/file-hub/onboarding-tour";
 
 /** White top bar — brand + language switcher + install */
 export function Navbar() {
@@ -55,7 +56,9 @@ export function Navbar() {
             )}
             <LanguageToggle />
             <PwaInstaller />
+            <TourButton />
             <Button
+              id="fm-sk-btn"
               variant="ghost"
               size="icon"
               onClick={openShortcutsHelp}

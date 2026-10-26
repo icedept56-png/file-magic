@@ -26,6 +26,7 @@ import { BatchStudio } from "@/components/file-hub/batch-studio";
 import { CompressionStudio } from "@/components/file-hub/compression-studio";
 import { WordEditor } from "@/components/file-hub/word-editor";
 import { ShortcutLayer } from "@/components/file-hub/shortcut-layer";
+import { OnboardingTour } from "@/components/file-hub/onboarding-tour";
 import { Footer } from "@/components/file-hub/footer";
 import { HistorySync } from "@/components/file-hub/history-sync";
 
@@ -61,6 +62,7 @@ export default function Home() {
         মূল কন্টেন্টে যান / Skip to content
       </a>
       <ShortcutLayer />
+      <OnboardingTour />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Navbar />

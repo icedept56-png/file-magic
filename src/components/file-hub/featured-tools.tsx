@@ -74,7 +74,7 @@ export function FeaturedTools() {
     "fm-card fm-card-hover group rounded-2xl text-left outline-none transition-all focus-visible:ring-2 focus-visible:ring-emerald-500/60";
 
   return (
-    <section className="mt-8" aria-label={t("featuredAria")}>
+    <section id="fm-featured" className="mt-8 scroll-mt-24" aria-label={t("featuredAria")}>
       <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
         {/* ── hero banner (PDF → Word) ─────────────────────────── */}
         {hero && (

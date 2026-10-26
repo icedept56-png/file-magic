@@ -527,6 +527,43 @@ const STR = {
     "You can still download it — if it won't open in other software, run the tool again",
   ],
 
+  // onboarding tour (Day 13 — 60-day roadmap)
+  obSearch: ["যেকোনো টুল সাথে সাথে", "Find any tool instantly"],
+  obSearchBody: [
+    "লিখতে শুরু করলেই টুল ধরা পড়বে — “/” বা Ctrl+K চাপলেও সার্চে চলে আসবেন।",
+    "Just start typing — or press “/” or Ctrl+K to jump straight to search.",
+  ],
+  obPrivacy: ["১০০% প্রাইভেট", "100% private"],
+  obPrivacyBody: [
+    "ফাইল কখনো ডিভাইস ছাড়ে না — সব প্রসেসিং আপনার ব্রাউজারেই হয়।",
+    "Files never leave your device — everything is processed in your browser.",
+  ],
+  obFeatured: ["জনপ্রিয় কাজ এক ক্লিকে", "Popular tasks, one click"],
+  obFeaturedBody: [
+    "সবচেয়ে বেশি ব্যবহৃত টুলগুলো এখানেই হাতের কাছে সাজানো।",
+    "The most-used tools are lined up right here.",
+  ],
+  obGrid: ["সব টুল এক জায়গায়", "Every tool in one place"],
+  obGridBody: [
+    "ক্যাটাগরি বেছে নিন বা পুরো গ্রিড ঘুরে দেখুন।",
+    "Pick a category or browse the whole grid.",
+  ],
+  obShortcuts: ["দ্রুত কাজের শর্টকাট", "Power-user shortcuts"],
+  obShortcutsBody: [
+    "“?” চাপলেই সব শর্টকাটের তালিকা; Esc দিয়ে হোমে ফেরা যায়।",
+    "Press “?” for the full shortcut list; Esc brings you home.",
+  ],
+  obNext: ["পরবর্তী", "Next"],
+  obBack: ["পিছনে", "Back"],
+  obSkip: ["ট্যুর বাদ দিন", "Skip tour"],
+  obDone: ["শুরু করি!", "Let's go!"],
+  obReplay: ["ট্যুর আবার দেখুন", "Replay tour"],
+  obReplayAria: ["অনবোর্ডিং ট্যুর আবার চালান", "Replay the onboarding tour"],
+
+  // smart empty state (Day 13 — 60-day roadmap)
+  seMaybe: ["আপনি হয়তো এগুলো খুঁজছেন", "You might be looking for"],
+  sePopular: ["জনপ্রিয় টুল", "Popular tools"],
+
   // footer
   footerLine: [
     "আপনার ফাইল আপনার ডিভাইসেই থাকে। কোনো আপলোড নেই, কোনো ট্র্যাকিং নেই।",
