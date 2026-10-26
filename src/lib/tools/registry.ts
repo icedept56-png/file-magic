@@ -41,6 +41,7 @@ import {
   Aperture,
   Presentation,
   BookOpenText,
+  FileUser,
 } from "lucide-react";
 
 import type { Category, ToolDef } from "./types";
@@ -83,6 +84,7 @@ export const EDITOR_IDS: readonly string[] = [
   "batch-studio",
   "compression-studio",
   "word-editor",
+  "cv-builder",
 ];
 
 export const TOOLS: ToolDef[] = [
@@ -725,6 +727,29 @@ export const TOOLS: ToolDef[] = [
     actionLabelEn: "Extract text",
     options: [],
     process: formats.odtRtfToText,
+  },
+  {
+    id: "cv-builder",
+    name: "সিভি বিল্ডার",
+    nameEn: "CV Builder",
+    desc: "বাংলা+ইংরেজি প্রিমিয়াম টেমপ্লেটে সিভি বানান — লাইভ প্রিভিউ, খসড়া সেভ, PDF ডাউনলোড",
+    descEn: "Build a CV with premium templates — live preview, draft autosave, PDF download",
+    keywords: ["cv", "resume", "job", "চাকরি", "সিভি", "রেজুমে", "builder", "career"],
+    category: "document",
+    icon: FileUser,
+    gradient: "bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-500/40",
+    glow: "rgba(249,115,22,0.35)",
+    files: { accept: "application/json,.json", multiple: false },
+    inputMode: "file",
+    hint: "সিভি ডেটা (.json — ঐচ্ছিক)",
+    hintEn: "CV data (.json — optional)",
+    actionLabel: "বিল্ডার খুলুন",
+    actionLabelEn: "Open builder",
+    options: [],
+    process: async () => {
+      // the builder runs in its own full-screen view — never in the workspace
+      throw new Error("সিভি বিল্ডারের নিজস্ব ভিউ আছে — টুলটি খুলুন।");
+    },
   },
   {
     id: "word-editor",
