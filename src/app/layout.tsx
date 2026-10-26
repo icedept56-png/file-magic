@@ -24,7 +24,7 @@ const sign = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: "ফাইল ম্যাজিক | File Magic — সব ফাইলের সম্পূর্ণ সমাধান",
+  title: "ফাইল ম্যাজিক | File Magic — সব ফাইলের এক ঠিকানা",
   description:
     "PDF, Word, Excel, ছবি, ZIP — সব ধরনের ফাইল কনভার্ট, এডিট, কম্প্রেস ও ম্যানেজ করুন এক জায়গায়। সম্পূর্ণ ফ্রি, সব প্রসেসিং আপনার ব্রাউজারেই — কোনো ফাইল সার্ভারে যায় না। | Convert, edit & compress PDF, Word, Excel, images and ZIP — free and 100% private, right in your browser.",
   keywords: [
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   applicationName: "ফাইল ম্যাজিক | File Magic",
   manifest: "/manifest.webmanifest",
   openGraph: {
-    title: "ফাইল ম্যাজিক | File Magic — সব ফাইলের সম্পূর্ণ সমাধান",
+    title: "ফাইল ম্যাজিক | File Magic — সব ফাইলের এক ঠিকানা",
     description:
       "PDF, Word, Excel, ছবি, ZIP — সব ধরনের ফাইল কনভার্ট, এডিট, কম্প্রেস করুন এক জায়গায়। ১০০% প্রাইভেট। | All-in-one file toolkit, 100% private.",
     type: "website",
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "ফাইল ম্যাজিক | File Magic",
     description:
-      "সব ফাইলের সম্পূর্ণ সমাধান — কনভার্ট, এডিট, কম্প্রেস এক জায়গায়। | All-in-one file toolkit.",
+      "সব ফাইলের এক ঠিকানা — কনভার্ট, এডিট, কম্প্রেস এক জায়গায়। | All-in-one file toolkit.",
   },
   appleWebApp: {
     capable: true,

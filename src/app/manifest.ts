@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ফাইল ম্যাজিক — সব ফাইলের সম্পূর্ণ সমাধান",
+    name: "ফাইল ম্যাজিক — সব ফাইলের এক ঠিকানা",
     short_name: "ফাইল ম্যাজিক",
     description:
       "PDF, Word, Excel, ছবি, ZIP — সব ধরনের ফাইল কনভার্ট, এডিট, কম্প্রেস ও ম্যানেজ করুন এক জায়গায়।",
