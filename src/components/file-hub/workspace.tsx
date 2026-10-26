@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboa
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
+  AlertTriangle,
   Archive,
   ArrowLeft,
   CheckCircle2,
@@ -20,6 +21,7 @@ import {
   Package,
   RotateCcw,
   SearchX,
+  ShieldCheck,
   UploadCloud,
   Wand2,
   X,
@@ -43,6 +45,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { downloadBlob, formatBytes } from "@/lib/tools/helpers";
 import { getTool } from "@/lib/tools/registry";
+import { checkOutput, preflightInputs } from "@/lib/tools/validate";
 import { pick, useT } from "@/lib/i18n";
 import type { OutputFile, ToolOptionField } from "@/lib/tools/types";
 import { useAppStore } from "@/store/app-store";
@@ -80,6 +83,7 @@ export function Workspace() {
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
   const [results, setResults] = useState<OutputFile[] | null>(null);
+  const [checks, setChecks] = useState<boolean[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [zipping, setZipping] = useState(false);
@@ -97,6 +101,7 @@ export function Workspace() {
     setFiles([]);
     setOpts(defaultOpts(tool));
     setResults(null);
+    setChecks(null);
     setError(null);
     setProgress(0);
     setProgressLabel("");
@@ -162,9 +167,22 @@ export function Workspace() {
       toast.error(tool.inputMode === "text" ? t("needText") : t("needFile"));
       return;
     }
+    // Day 11 pre-flight: reject empty / disguised files with a friendly,
+    // file-naming error BEFORE any processing starts
+    if (files.length > 0) {
+      try {
+        await preflightInputs(files);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : t("genericErr");
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+    }
     setBusy(true);
     setError(null);
     setResults(null);
+    setChecks(null);
     setProgress(0);
     setProgressLabel("");
     try {
@@ -175,6 +193,16 @@ export function Workspace() {
       if (!out?.length) throw new Error(t("noOutputErr"));
       setResults(out);
       toast.success(t("doneToast"));
+      // Day 11: locally verify every output (magic bytes vs name, non-empty)
+      // and attach per-row trust badges — the user sees proof, not promises
+      void (async () => {
+        try {
+          const list = await Promise.all(out.map((r) => checkOutput(r.name, r.blob)));
+          setChecks(list.map((c) => c === "ok"));
+        } catch {
+          /* leave rows unchecked rather than block the result */
+        }
+      })();
       // bring the fresh results into view
       requestAnimationFrame(() => {
         resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -228,6 +256,7 @@ export function Workspace() {
     setFiles([]);
     if (tool) setOpts(defaultOpts(tool));
     setResults(null);
+    setChecks(null);
     setError(null);
     setProgress(0);
     setProgressLabel("");
@@ -608,18 +637,46 @@ export function Workspace() {
             </div>
 
             <div className="fm-scroll max-h-72 space-y-2 overflow-y-auto pr-1">
-              {results.map((r, i) => (
+              {results.map((r, i) => {
+                const ok = checks?.[i];
+                return (
                 <div
                   key={`${r.name}-${i}`}
                   className="flex items-center gap-3 rounded-xl border border-emerald-900/[0.07] bg-white px-3 py-2 shadow-sm"
                 >
-                  <FileDown className="h-4 w-4 shrink-0 text-emerald-600" />
+                  {ok === false ? (
+                    <AlertTriangle
+                      className="h-4 w-4 shrink-0 text-amber-600"
+                      aria-label={t("qaBadHint")}
+                    />
+                  ) : (
+                    <FileDown className="h-4 w-4 shrink-0 text-emerald-600" />
+                  )}
                   <span className="flex-1 truncate text-sm text-emerald-950/85">
                     {r.name}
                   </span>
                   <span className="shrink-0 text-xs text-emerald-900/50">
                     {formatBytes(r.blob.size)}
                   </span>
+                  {ok === true && (
+                    <span
+                      title={t("qaVerifiedAria")}
+                      aria-label={t("qaVerifiedAria")}
+                      className="hidden shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 sm:inline-flex dark:bg-emerald-500/15 dark:text-emerald-300"
+                    >
+                      <ShieldCheck className="h-3 w-3" aria-hidden />
+                      {t("qaVerified")}
+                    </span>
+                  )}
+                  {ok === false && (
+                    <span
+                      title={t("qaBadHint")}
+                      className="hidden shrink-0 items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-700 sm:inline-flex dark:bg-amber-500/15 dark:text-amber-300"
+                    >
+                      <AlertTriangle className="h-3 w-3" aria-hidden />
+                      {t("qaBad")}
+                    </span>
+                  )}
                   <Button
                     size="sm"
                     onClick={() => downloadBlob(r.blob, r.name)}
@@ -629,7 +686,8 @@ export function Workspace() {
                     {t("download")}
                   </Button>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {results.length > 1 && (

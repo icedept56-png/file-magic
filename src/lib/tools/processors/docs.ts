@@ -60,8 +60,23 @@ export async function htmlToPdfBlob(html: string, onProgress: ProgressFn): Promi
       "padding:48px;font-family:var(--font-bengali),'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif;" +
       "font-size:15px;line-height:1.75;word-wrap:break-word;overflow-wrap:break-word;"
   );
+  el.className = "fm-pdf-root";
   el.innerHTML = html;
   document.body.appendChild(el);
+
+  // html2canvas-pro paints ::before/::after but NOT ::marker — native list
+  // numbers/bullets vanish in the raster. Replace them with counter-based
+  // ::before content (which it CAN paint), scoped to the offscreen root so
+  // downloaded .html exports keep their native, semantic lists.
+  const listFix = document.createElement("style");
+  listFix.textContent = [
+    ".fm-pdf-root ul, .fm-pdf-root ol { list-style: none; }",
+    ".fm-pdf-root ol { counter-reset: fmol; }",
+    ".fm-pdf-root ol > li { counter-increment: fmol; }",
+    '.fm-pdf-root ol > li::before { content: counter(fmol) ". "; font-weight: 600; padding-right: 0.35em; }',
+    '.fm-pdf-root ul > li::before { content: "\\2022\\00a0"; padding-right: 0.15em; }',
+  ].join("\n");
+  document.head.appendChild(listFix);
 
   // 2. html2canvas-pro
   let canvas: HTMLCanvasElement;
@@ -78,6 +93,7 @@ export async function htmlToPdfBlob(html: string, onProgress: ProgressFn): Promi
     throw err("pdfRenderFail");
   } finally {
     document.body.removeChild(el);
+    listFix.remove();
   }
 
   // 3. slice into A4 pages (794x1123 css px → 1588x2246 at scale 2)

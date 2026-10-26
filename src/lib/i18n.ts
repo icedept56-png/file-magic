@@ -518,6 +518,15 @@ const STR = {
   // large-file performance (Day 9 — 60-day roadmap)
   lfLarge: ["বড় ফাইল শনাক্ত হয়েছে — কাজটি ব্যাকগ্রাউন্ডে চলবে, একটু সময় লাগতে পারে", "Large file detected — this runs in the background and may take a moment"],
 
+  // output quality assurance (Day 11 — 60-day roadmap)
+  qaVerified: ["যাচাইকৃত", "Verified"],
+  qaVerifiedAria: ["ফাইলটি যাচাই করা হয়েছে — সঠিক ফরম্যাট", "File was validated — correct format"],
+  qaBad: ["যাচাই ব্যর্থ", "Failed check"],
+  qaBadHint: [
+    "ফাইলটি তবুও ডাউনলোড করা যাবে — অন্য সফটওয়্যারে না খুললে আবার চেষ্টা করুন",
+    "You can still download it — if it won't open in other software, run the tool again",
+  ],
+
   // footer
   footerLine: [
     "আপনার ফাইল আপনার ডিভাইসেই থাকে। কোনো আপলোড নেই, কোনো ট্র্যাকিং নেই।",

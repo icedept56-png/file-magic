@@ -83,6 +83,18 @@ const M = {
     en: "No valid pages found",
   },
 
+  // ── validate.ts (Day 11 — output QA) ─────────────────────────────────
+  fileEmpty: {
+    bn: (name: string) => `"${name}" ফাইলটি খালি (০ বাইট) — সঠিক ফাইল দিন`,
+    en: (name: string) => `The file "${name}" is empty (0 bytes) — add a valid file`,
+  },
+  fileNotReal: {
+    bn: (name: string) =>
+      `"${name}"-এর ভেতরের ডেটা তার এক্সটেনশনের সাথে মেলে না — ফাইলটি ক্ষতিগ্রস্ত বা ভুল নামের হতে পারে`,
+    en: (name: string) =>
+      `The data inside "${name}" doesn't match its extension — the file may be corrupt or misnamed`,
+  },
+
   // ── pdf.ts ────────────────────────────────────────────────────────────
   mergeNeed2: {
     bn: "মার্জ করতে কমপক্ষে ২টি পিডিএফ দিন",
