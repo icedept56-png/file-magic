@@ -849,3 +849,24 @@ Stage Summary:
 - Day 21 shipped: the app stops feeling "সস্তা" — touches buzz, success states draw, results cascade, the language pill glides; all motion collapses to zero for reduced-motion users via one MotionConfig
 - Lesson: put the haptic at the single chokepoint (downloadBlob) rather than every caller; MotionConfig is the cheapest global a11y win in a framer-motion app
 - Artifacts: haptics.ts, language-toggle pill, workspace banner/rows
+
+---
+Task ID: 35
+Agent: main (Z.ai Code)
+Task: Day 22 (Phase 2 — 60-day roadmap) — বাংলা কপিরাইটিং পাস (পেশাদার টোন)
+
+Work Log:
+- Full audit of ~470 bn strings (naive STR parser dump → read-through); applied 30+ surgical fixes keeping selector-bound strings (searchAria etc.) untouched:
+  • brandline "সব ফাইলের সম্পূর্ণ সমাধান" → "সব ফাইলের এক ঠিকানা" — also layout metadata ×2 + manifest (de-calqued "all-in-one")
+  • "জলদি শুরু করুন" → "দ্রুত শুরু করুন" (জলদি regional); doneToast → "কাজ সফল হয়েছে!"; doneBanner → "কাজ শেষ! …" (was abrupt "সম্পন্ন!")
+  • professional imperative family: বাছুন → বেছে নিন (chooseOne + 12 picker labels: ed/ie/se/me/ae-pick, bsAdd/bsEmpty, cs, pmSelectAll/pmNeedSelect/csPickPreview)
+  • word choices: রেজাল্ট নিন → আউটপুট পান; দশটা → দশটি + জায়গাতেই→জায়গায়; শোধরান/শুধরে নিন → সংশোধন করুন (weHint, ocrEditHint); পেপার → কাগজ (sgImgHint); ইন্টারনেট দেখে → ইন্টারনেট সংযোগ দেখে; কিছু একটা সমস্যা → অপ্রত্যাশিত একটি সমস্যা হয়েছে; আগে লেখা দিন → প্রথমে কিছু লিখুন; সত্যিই ছেড়ে যাবেন? → তবুও ছেড়ে যাবেন?; কোন কোণে? → কোন কোণে ঘোরাবেন?; seBigWarn smoothed
+  • spelling: পুরোনো → পুরনো (standard)
+  • correctness: FAQ formats answer count ৪৫ → ৪৭টি (stale after Days 17/19 tools)
+- E2E: hero h1 "দ্রুত শুরু করুন", header tagline "এক ঠিকানা", features "দশটি অ্যাপের কাজ", run text→pdf → banner "কাজ শেষ! নিচের ফাইলগুলো ডাউনলোড করুন"; zero occurrences of calque strings in src; console 0
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 22 shipped: the UI now SOUNDS Bengali-professional instead of translated — consistent বেছে নিন family, de-calqued brandline everywhere (title/meta/manifest included), standard spellings; selector-bound strings untouched so all Day-8/13 machinery still works
+- Lesson: E2E assertions are copy contracts — the copy pass touched no aria-label used by code (shortcut-layer/tour) and every prior flow still passes
+- Artifacts: i18n.ts (30+ strings), layout.tsx/manifest.ts brandline
