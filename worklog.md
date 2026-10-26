@@ -760,3 +760,21 @@ Stage Summary:
 - Day 16 shipped: "সমস্যা জানানোর পথ নেই" closed — users get a real FAQ (top 8 pains, all privacy-forward) and a feedback form that is honest about being local-first; owner must swap FM_SUPPORT_EMAIL before launch
 - Lessons: [role=dialog] selectors must disambiguate when the onboarding tour (also role=dialog) is live — dismiss it first; Radix TabsTrigger ignores JS .click() in headless — use real pointer clicks (agent-browser click @ref); disabled-button UX beats toast validation for single-field gating
 - Artifacts: help-center.tsx, navbar.tsx, .verify screenshots via agent-browser tmp
+
+---
+Task ID: 30
+Agent: main (Z.ai Code)
+Task: Day 17 (Phase 2 — 60-day roadmap) — টেমপ্লেট গ্যালারি: ওয়ান-ক্লিক ওয়ার্কফ্লো
+
+Work Log:
+- NEW src/lib/templates.ts — 6 TemplateDefs with inline [bn,en] tuples: এনআইডি স্ক্যান→document-scan (preset gray + docName), সিভি বানান→word-editor (starter CV skeleton: h1/h2/ul semantics, Bengali), পাসপোর্ট ছবি→image-resize (413×531 = 35×45mm @300dpi, keepAspect false), ইমেইল ছবি→image-compress (q55), ওয়েবের জন্য WebP→image-convert (webp q80), অনেক ছবি একসাথে→batch-studio
+- NEW src/components/file-hub/template-gallery.tsx — home section (grid 2/3/6 cols): icon+name+desc+শুরু করুন; apply() → setResumeOpts (workspace opts prefill via existing Day-14 machinery) and/or setTemplateHandoff (editors) → openTool → confirming toast with the pre-set explanation
+- Store +templateHandoff/setTemplateHandoff (one-shot {toolId, html?, preset?, docName?}); scan-editor mount effect applies preset; word-editor mount effect seeds innerHTML + docName; both consume-and-clear
+- i18n +4 tp* keys; page.tsx mounts gallery between RecentActivity and EditorSpotlight
+- E2E (agent-browser, all real launches): পাসপোর্ট → ইমেজ রিসাইজ w=413 h=531 + toast "৪১৩×৫৩১ px (৩৫×৪৫ মিমি @ ৩০০ DPI) প্রি-সেট"; সিভি → word editor h1 "আপনার নাম" skeleton present; এনআইডি → scanner, seeded a test image → ধূসর preset chip ACTIVE (handoff proven visually); EN gallery ("Quick templates"/"NID scan"/"Make a CV"/"Passport photo"); mobile 390 sw=390; console 0; dev.log 200s
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 17 shipped: "সাধারণ কাজ খুঁজতে হয়" solved — the roadmap's three named flows (NID scan, CV, passport photo) are now literally one click with settings pre-arranged and a toast that says what was set up
+- Design: templates are DATA (typed defs with payload), not routes — a new template is ~10 lines; workspace tools reuse resumeOpts, editors use templateHandoff — no duplicated prefill logic
+- Artifacts: templates.ts, template-gallery.tsx, store handoff, editor mount effects
