@@ -743,3 +743,20 @@ Stage Summary:
 - Fonts note: next/font/google self-hosts at build → /_next/static/media → already cacheFirst — no external font dependency
 - Lesson: SW fetch handlers must be strategy-scoped (cacheFirst only for truly immutable paths); dev SW testing via ?fm-sw=1 works but expects one controllerchange reload after first registration
 - Artifacts: sw.js v6, offline-banner.tsx, register-sw.tsx, .verify/d15-offline.png
+
+---
+Task ID: 29
+Agent: main (Z.ai Code)
+Task: Day 16 (Phase 2 — 60-day roadmap) — ফিডব্যাক উইজেট + সহায়তা কেন্দ্র (FAQ)
+
+Work Log:
+- NEW src/components/file-hub/help-center.tsx — one Dialog, two Tabs: FAQ (8 bilingual accordion items: uploads/offline/formats/verified badge/batch/Bengali text/undo/history) + Feedback (emoji rating radiogroup দারুণ/ভালো/উন্নতি দরকার, 4 topic chips, optional 2000-char message); privacy-first submit → saved to localStorage fm-feedback-list (max 20, never sent anywhere) → thanks screen with Copy (clipboard) + mailto (FM_SUPPORT_EMAIL constant, ⚠️ owner replace before launch) + আরেকটি লিখুন reset; পাঠান disabled until rating picked (toast fallback exists); FAQ tab ends with "উত্তর পাননি?" → feedback cross-link
+- Entries: navbar LifeBuoy HelpButton (openHelpCenter("faq") via fm-open-help custom event — replayable from anywhere); mounted once in page.tsx; i18n +41 hc*/fb* keys
+- 🐞 FOUND IN E2E: EN mobile 390 horizontal overflow (scrollWidth 405) — 6 navbar buttons too wide → TourButton now hidden below sm (sm:inline-flex); re-verified bn 390 / en 390
+- E2E (agent-browser): navbar opens dialog (title সহায়তা কেন্দ্র, 8 questions); accordion expands with full answers; feedback flow: rating+topic+message → saved {great, feature, "HEIC কনভার্টার…"} → thanks screen; copy/mailto buttons render; reset works; EN ("Help center", "FAQ", "Feedback"); console 0; dev.log 200s
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 16 shipped: "সমস্যা জানানোর পথ নেই" closed — users get a real FAQ (top 8 pains, all privacy-forward) and a feedback form that is honest about being local-first; owner must swap FM_SUPPORT_EMAIL before launch
+- Lessons: [role=dialog] selectors must disambiguate when the onboarding tour (also role=dialog) is live — dismiss it first; Radix TabsTrigger ignores JS .click() in headless — use real pointer clicks (agent-browser click @ref); disabled-button UX beats toast validation for single-field gating
+- Artifacts: help-center.tsx, navbar.tsx, .verify screenshots via agent-browser tmp
