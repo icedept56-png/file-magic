@@ -629,3 +629,32 @@ Stage Summary:
 - Day 10 shipped: "এই ফরম্যাট কেন কাজ করে না?" — iPhone photos now flow through every image tool; PowerPoint slides and legacy ODT/RTF documents are readable, all on-device
 - TOOL_COUNT ৪৫ (was ৩৯ at Day 3 end) — 6 new tools across Days 4-10 (page-manager, compression-studio, word-editor, heic-convert, pptx-text, odt-rtf-reader)
 - Artifacts: processors/formats.ts, .verify/{test.pptx,test.odt}
+
+---
+Task ID: 24
+Agent: main (Z.ai Code)
+Task: Day 11 (60-day roadmap) — আউটপুট কোয়ালিটি অ্যাসিউরেন্স: file validator, edge-case corpus, corrupt-file friendly errors + the Day 6 list-marker fix
+
+Work Log:
+- New src/lib/tools/validate.ts (100% client-side):
+  • SIGS table — unambiguous magic signatures (pdf %PDF-, jpg ffd8ff, png, webp RIFF/WEBP, zip-family PK\x03\x04 incl. docx/xlsx/pptx/odt, gif/bmp/heic-ftyp-brands, mp3 ID3|sync, wav/ogg/flac/m4a, legacy OLE doc/xls, rtf); text formats (txt/csv/json/html/md/svg) + unknown exts deliberately exempt (non-empty only) — too many legit edge cases to sniff
+  • preflightInputs(files) — runs BEFORE any workspace tool: rejects 0-byte files and binary formats whose bytes contradict their extension (a .jpg that is really text, truncated png), throws localized err("fileEmpty"/"fileNotReal", name) naming the file; read failures stay lenient (processor's own error is more specific)
+  • checkOutput(name, blob) — per-output "ok"|"empty"|"signature"; never throws (our own read failure must not block a user's result)
+- workspace.tsx wiring: preflight gate at the top of runProcess (error alert + toast, no processing); after each run every output is verified and results rows get trust badges — ShieldCheck "যাচাইকৃত/Verified" (emerald) or AlertTriangle "যাচাই ব্যর্থ/Failed check" (amber, title=hint, download still allowed — honest, non-blocking); badges hidden <sm (mobile keeps the amber/green icon), checks state reset on tool change/reset
+- DAY 6 BUG FIXED (was noted as known-cosmetic): html2canvas-pro paints ::before/::after but NOT ::marker → ordered-list numbers vanished in every raster-PDF export (word editor, docx→pdf, html→pdf). Fix in htmlToPdfBlob: scoped .fm-pdf-root style injected into <head> for the render pass only — ol counters (counter-reset/increment + ::before "N. "), ul ::before "• ", native markers removed; downloaded .html exports keep semantic lists untouched; style removed in finally
+- messages.ts +2 keys (fileEmpty/fileNotReal); i18n +4 qa* keys (bn/en)
+- E2E (agent-browser, real runs; .verify/seed-qa.js = hand-rolled CRC32+STORE zip writer + exact-xref valid PDF generator + 1x1 PNG):
+  1) Preflight empty: merge [valid.pdf, empty.pdf] → error '"empty.pdf" ফাইলটি খালি (০ বাইট) — সঠিক ফাইল দিন', zero processing
+  2) Preflight disguised: image-compress with text-as-.jpg → '"photo.jpg"-এর ভেতরের ডেটা তার এক্সটেনশনের সাথে মেলে না…'
+  3) No false positives: real 1x1 PNG through the same tool → success + যাচাইকৃত badge (shot.png → shot.webp)
+  4) Bengali filename E2E: "রিপোর্ট টেস্ট.pdf" rotate → "রিপোর্ট টেস্ট-rotated.pdf" + যাচাইকৃত; captured blob = 719B %PDF-1.7 (hand-made PDF also passed pdf-lib parse — xref exact)
+  5) BOTH badges render naturally: crafted ZIP (fake.jpg=text, ok.png, নোট.pdf) → extract → fake.jpg যাচাই ব্যর্থ (amber), ok.png + নোট.pdf যাচাইকৃত (emerald)
+  6) List-marker fix VISUAL: word editor h1+ol(3 bn li)+ul(2 li) → PDF export 46KB → pdfimages page JPEG → "1. 2. 3." and "•" painted, Bengali perfect
+  7) EN mode ("Verified"/"Failed check"), mobile 390px scrollW=390, home regression (footer/hero), console clean, dev.log 200s
+- Gates: eslint 0 problems, tsc clean (src/)
+
+Stage Summary:
+- Day 11 shipped: "আউটপুট ফাইল অন্য সফটওয়্যারে না খুললে বিশ্বাস যায়" — inputs are now pre-flighted (friendly named errors), and every workspace output carries a local proof-of-validity badge; the two-week-old list-number bug is dead with visual evidence
+- Zip-extract with a planted disguised file was the only natural way to make the "signature" branch render — better than a dev-only test hook; empty/signature logic additionally covered by checkOutput design review
+- Lesson: workspace seeding appends for multiple-tools — always click reset before re-seeding mid-test; agent-browser find-by-text goes stale after React re-renders (re-snapshot, click by ref)
+- Artifacts: validate.ts, .verify/{seed-qa.js, qa-en-mobile.png, we-lists.pdf, we-pg-000.jpg}
