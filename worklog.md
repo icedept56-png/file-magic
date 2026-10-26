@@ -870,3 +870,20 @@ Stage Summary:
 - Day 22 shipped: the UI now SOUNDS Bengali-professional instead of translated — consistent বেছে নিন family, de-calqued brandline everywhere (title/meta/manifest included), standard spellings; selector-bound strings untouched so all Day-8/13 machinery still works
 - Lesson: E2E assertions are copy contracts — the copy pass touched no aria-label used by code (shortcut-layer/tour) and every prior flow still passes
 - Artifacts: i18n.ts (30+ strings), layout.tsx/manifest.ts brandline
+
+---
+Task ID: 36
+Agent: main (Z.ai Code)
+Task: Day 23 (Phase 2 — 60-day roadmap) — এরর রেজিলিয়েন্স: বান্ধব এরর, অটো-রিকভারি, ড্রাফট সেভ
+
+Work Log:
+- NEW src/app/error.tsx — route error boundary: bilingual card ("একটু সমস্যা হয়েছে · Something went wrong"), privacy-first copy (files safe on device), আবার চালু করুন (reset) + হোমে যান buttons, digest footer; NEW src/app/global-error.tsx — inline-styled last-resort boundary (globals may not have loaded)
+- Workspace resilience (builds on validate.ts preflight per gate note): error alert now carries an "আবার চেষ্টা করুন" retry button (re-runs preflight+process with same inputs); per-tool text draft autosave (fm-draft-text-{id}, debounced 800ms, localStorage) restored on tool open with "আগের লেখা ফিরিয়ে আনা হয়েছে" toast; draft cleared on success AND on নতুন কাজ reset; beforeunload guard while busy (no accidental tab close mid-job)
+- 🐞 caught in E2E: fast tools (text→pdf ~300ms) finished BEFORE the 800ms debounce fired → the pending save resurrected the draft after the success-clear; fixed by guarding the saver with `results` state (finished job never re-saves)
+- E2E (agent-browser): typed draft → localStorage written; reload → re-enter → textarea restored + toast; success → draft key GONE (after race fix); forced error (resize w/o dims) → alert shows "প্রস্থ বা উচ্চতা…" + আবার চেষ্টা করুন → set width=32 → click retry → SUCCESS (1 download, alert gone); EN title reflects Day-22 tagline; mobile 390 sw=390; console 0
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 23 shipped: "এররে কাজ হারায়" closed from three sides — crashes land on a branded bilingual recovery screen, tool failures offer one-tap retry with inputs intact, and typed text survives exits; drafts auto-clean so they never become ghosts
+- Lesson: debounce vs fast-completion is a classic race — any "clear after success" must dominate scheduled saves (guard with the success state itself)
+- Artifacts: error.tsx, global-error.tsx, workspace draft/retry/guard
