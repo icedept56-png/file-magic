@@ -778,3 +778,22 @@ Stage Summary:
 - Day 17 shipped: "সাধারণ কাজ খুঁজতে হয়" solved — the roadmap's three named flows (NID scan, CV, passport photo) are now literally one click with settings pre-arranged and a toast that says what was set up
 - Design: templates are DATA (typed defs with payload), not routes — a new template is ~10 lines; workspace tools reuse resumeOpts, editors use templateHandoff — no duplicated prefill logic
 - Artifacts: templates.ts, template-gallery.tsx, store handoff, editor mount effects
+
+---
+Task ID: 31
+Agent: main (Z.ai Code)
+Task: Day 18 (Phase 2 — 60-day roadmap) — CV/রেজুমে বিল্ডার (bn+en, প্রিমিয়াম টেমপ্লেট, PDF)
+
+Work Log:
+- NEW src/components/file-hub/cv-builder.tsx (tool #46, editor view): structured form — personal (name/title/phone/email/address), career objective, education rows (degree/org/year, add/remove), experience rows (role/org/period/detail), comma skills; toolbar: 3 template radios (ক্লাসিক centered-header / সাইডবার gradient header + contact-skills rail / মিনিমাব uppercase rules) + CV-language toggle (bn/en controls the CV's OWN section headings, independent of UI language) + reset (confirm) + PDF export with % progress
+- buildCvHtml(): single source of truth — inline-styled semantic HTML string feeds BOTH the live preview AND htmlToPdfBlob (preview container clones the exact 794px/48px wrapper the exporter uses → WYSIWYG); emerald/teal palette only
+- Debounced (900ms) draft autosave → localStorage fm-cv-data with "খসড়া সেভ হয়েছে" tick; hydrate-on-mount restores
+- Registry +cv-builder (FileUser icon, document category), EDITOR_IDS + page.tsx EDITOR_VIEWS wired; TOOL_COUNT ৪৫→৪৬ (hero/grid/home all reflect); i18n +37 cv* keys
+- E2E (agent-browser + pdfjs ground truth): count "৪৬ টি টুল"; fill full bn form → preview live-updates (name/skills/summary/heading "ক্যারিয়ার লক্ষ্য"); sidebar variant shows যোগাযোগ rail; PDF export → captured blob 62KB → "রফিকুল ইসলাম.pdf" (Bengali filename) → pdftoppm render: premium classic layout, perfect Bengali, skill chips, gradient divider; draft: typed টেস্ট নাম → reload → re-enter → restored (storage + field); EN ("CV Builder"/"Download PDF"/Classic/Sidebar/Minimal); mobile 390 sw=390 with তথ্য/প্রিভিউ tab switcher (form⇄preview); console 0; dev.log 200s
+- 🐞 chased & dismissed: one draft-restore "failure" was a fresh agent-browser profile (localStorage wiped incl. tour flag + draft) — reproducible flow restores correctly; empty storage after first mount on a fresh profile is the autosave writing the legitimate EMPTY state
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 18 shipped: "সিভি বানাতে বড় সফটওয়্যার লাগে" answered — a Bengali-first CV builder with real templates, WYSIWYG PDF, and draft safety; TOOLS 46
+- Lesson: single-source CV HTML (preview==PDF) beats dual rendering; raster-PDF exports verify via pdftoppm visual, not text extraction; agent-browser profile recycling can fake data-loss bugs — check storage before blaming the app
+- Artifacts: cv-builder.tsx, registry #46, .verify/d18-cv.pdf + d18-cv-page-1.png
