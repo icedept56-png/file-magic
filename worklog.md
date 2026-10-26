@@ -725,3 +725,21 @@ Stage Summary:
 - Day 14 shipped: "আগের কাজ হারিয়ে যায়" fixed — every successful run is now a one-tap resume point with settings remembered; privacy story intact (names/counts/sizes only, contents never stored)
 - Lesson: card-click test selectors must use the EXACT registry name (ইমেজ রিসাইজ, not ছবি রিসাইজ); search-by-keyword matches many tools (pdf-extract-text matches "text") — disambiguate by full name
 - Artifacts: recents.ts, recent-activity.tsx, .verify/d14-activity.png
+
+---
+Task ID: 28
+Agent: main (Z.ai Code)
+Task: Day 15 (Phase 2 — 60-day roadmap) — অফলাইন হার্ডেনিং: সম্পূর্ণ অফলাইন PWA + ব্যাকগ্রাউন্ড ক্যাশ
+
+Work Log:
+- public/sw.js → v6: PRECACHE +/logo.svg; NEW OCR_WARMUP background cache (gate note delivered) — tesseract.min.js, worker.min.js, tesseract-core-simd-lstm.wasm(.js), tessdata ben+eng traineddata.gz (~13.4MB) warmed in activate.waitUntil + re-triggerable via SW message "WARM_OCR"; fetch router now cacheFirst for /tessdata/* + /tesseract/* (immutable engine assets) alongside /_next/static + /icon-; networkFirst+shell-fallback unchanged
+- register-sw.tsx: production-only SW-update flow — waiting new version → sonner toast (bn/en from fm-lang) with রিফ্রেশ action (SKIP_WAITING), controllerchange → reload once; dev test hook: ?fm-sw=1 registers the SW in development (E2E-only, heal() untouched otherwise)
+- NEW offline-banner.tsx — fixed bottom card on navigator.onLine=false: "আপনি এখন অফলাইনে — কোনো সমস্যা নেই, সব টুল ডিভাইসেই চলছে…"; online/offline listeners, dismissible, fresh episode resets dismissal, aria-live=polite; mounted in page.tsx; i18n +3 of* keys
+- E2E (agent-browser, REAL service worker): ?fm-sw=1 → SW controlled; cache probe: 64 entries incl. ben/eng traineddata + simd-lstm wasm + shell + pdf.worker; SET OFFLINE → reload → page fully rendered from cache (title/tools grid/banner all live) → ran JSON formatter offline end-to-end (Bengali keys → 1 download); back online → banner auto-hides; console 0 errors; dev.log 200s
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 15 shipped: "নেট না থাকলে কিছুই চলে না" is now false — the whole shell, fonts (next/font self-hosted), pdf worker, and the FULL OCR engine (bn+eng) survive offline; tools are proven to run with the network cut; offline state gets a calm, on-brand reassurance banner
+- Fonts note: next/font/google self-hosts at build → /_next/static/media → already cacheFirst — no external font dependency
+- Lesson: SW fetch handlers must be strategy-scoped (cacheFirst only for truly immutable paths); dev SW testing via ?fm-sw=1 works but expects one controllerchange reload after first registration
+- Artifacts: sw.js v6, offline-banner.tsx, register-sw.tsx, .verify/d15-offline.png
