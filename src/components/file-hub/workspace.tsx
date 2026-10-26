@@ -46,6 +46,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { downloadBlob, formatBytes } from "@/lib/tools/helpers";
 import { getTool } from "@/lib/tools/registry";
 import { checkOutput, preflightInputs } from "@/lib/tools/validate";
+import { recordActivity } from "@/lib/recents";
 import { pick, useT } from "@/lib/i18n";
 import type { OutputFile, ToolOptionField } from "@/lib/tools/types";
 import { useAppStore } from "@/store/app-store";
@@ -95,11 +96,20 @@ export function Workspace() {
   const defaultOpts = (t2: NonNullable<typeof tool>): Opts =>
     Object.fromEntries(t2.options.map((o) => [o.key, o.default ?? ""] as const));
 
-  // Reset everything when the active tool changes
+  // Reset everything when the active tool changes — and if the user came
+  // from recent activity ("চালিয়ে যাওয়া"), pre-fill their previous options
   useEffect(() => {
     if (!tool) return;
+    const base = defaultOpts(tool);
+    const resume = useAppStore.getState().resumeOpts;
+    if (resume && resume.toolId === tool.id) {
+      for (const f of tool.options) {
+        if (f.key in resume.opts && resume.opts[f.key] !== "") base[f.key] = resume.opts[f.key];
+      }
+      useAppStore.getState().setResumeOpts(null);
+    }
     setFiles([]);
-    setOpts(defaultOpts(tool));
+    setOpts(base);
     setResults(null);
     setChecks(null);
     setError(null);
@@ -193,6 +203,17 @@ export function Workspace() {
       if (!out?.length) throw new Error(t("noOutputErr"));
       setResults(out);
       toast.success(t("doneToast"));
+      // Day 14: remember this run (metadata only — never file contents) so
+      // the home screen can offer "চালিয়ে যাওয়া" (resume) later
+      void recordActivity({
+        toolId: tool.id,
+        names: files.slice(0, 4).map((f) => f.name),
+        count: files.length,
+        bytes: files.reduce((a, f) => a + f.size, 0),
+        outputs: out.length,
+        opts: { ...opts },
+        text: needsText ? textVal.slice(0, 5000) : undefined,
+      });
       // Day 11: locally verify every output (magic bytes vs name, non-empty)
       // and attach per-row trust badges — the user sees proof, not promises
       void (async () => {

@@ -564,6 +564,16 @@ const STR = {
   seMaybe: ["আপনি হয়তো এগুলো খুঁজছেন", "You might be looking for"],
   sePopular: ["জনপ্রিয় টুল", "Popular tools"],
 
+  // recent activity / resume (Day 14 — 60-day roadmap)
+  raTitle: ["সাম্প্রতিক কাজ", "Recent activity"],
+  raAria: ["সাম্প্রতিক কাজের তালিকা", "Recent activity list"],
+  raClear: ["সব মুছুন", "Clear all"],
+  raClearAria: ["সাম্প্রতিক কাজের তালিকা মুছুন", "Clear recent activity"],
+  raResume: ["চালিয়ে যান", "Resume"],
+  raFiles: ["টি ফাইল", "files"],
+  raOutputs: ["টি আউটপুট", "outputs"],
+  raTextInput: ["টেক্সট ইনপুট", "Text input"],
+
   // footer
   footerLine: [
     "আপনার ফাইল আপনার ডিভাইসেই থাকে। কোনো আপলোড নেই, কোনো ট্র্যাকিং নেই।",

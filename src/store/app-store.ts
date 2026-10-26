@@ -57,6 +57,8 @@ interface AppState {
   lang: Lang;
   /** files staged for the OCR studio (scanner → OCR hand-off); not persisted */
   ocrHandoff: File[];
+  /** one-shot option snapshot for "চালিয়ে যাওয়া" (resume) from recent activity */
+  resumeOpts: { toolId: string; opts: Record<string, string | number | boolean> } | null;
   openTool: (id: string) => void;
   goHome: () => void;
   setSearch: (s: string) => void;
@@ -65,6 +67,7 @@ interface AppState {
   recordRecent: (id: string) => void;
   setLang: (l: Lang) => void;
   setOcrHandoff: (files: File[]) => void;
+  setResumeOpts: (r: { toolId: string; opts: Record<string, string | number | boolean> } | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -75,6 +78,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   recent: [],
   lang: "bn",
   ocrHandoff: [],
+  resumeOpts: null,
   openTool: (id) => {
     // keep the user's search/category so returning home restores their context
     get().recordRecent(id);
@@ -122,4 +126,5 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ lang });
   },
   setOcrHandoff: (files) => set({ ocrHandoff: files }),
+  setResumeOpts: (resumeOpts) => set({ resumeOpts }),
 }));
