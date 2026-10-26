@@ -797,3 +797,22 @@ Stage Summary:
 - Day 18 shipped: "সিভি বানাতে বড় সফটওয়্যার লাগে" answered — a Bengali-first CV builder with real templates, WYSIWYG PDF, and draft safety; TOOLS 46
 - Lesson: single-source CV HTML (preview==PDF) beats dual rendering; raster-PDF exports verify via pdftoppm visual, not text extraction; agent-browser profile recycling can fake data-loss bugs — check storage before blaming the app
 - Artifacts: cv-builder.tsx, registry #46, .verify/d18-cv.pdf + d18-cv-page-1.png
+
+---
+Task ID: 32
+Agent: main (Z.ai Code)
+Task: Day 19 (Phase 2 — 60-day roadmap) — সিগনেচার ২.০: আঁকা/টাইপ/ছবি, যেকোনো ডকুমেন্টে বসানো
+
+Work Log:
+- SignaturePad 2.0 (same onInsert contract, pdf-editor unchanged): 3 mode tabs — আঁকুন (existing pen canvas, now ink-aware) / টাইপ (text → canvas with 3 styles: Caveat handwriting via new --font-sign (next/font Caveat in layout), Bengali Hind Siliguri skewed, formal italic serif; resolved via hidden-probe getComputedStyle since canvas can't read CSS vars) / ছবি (image upload → whiteness→alpha: lum>232 transparent, 180-232 feathered); shared ink swatches (black/blue/red — pen colors, not theme colors)
+- NEW signature-studio.tsx (tool #47, editor view): intake PDF (pdf.js page render + পেজ nav) or image (HEIC-aware via ensureDecoded); signature dialog → stamp overlay (fraction coords), pointer drag, per-stamp width slider + Delete key + remove button; export PDF: pdf-lib load + embedPng per stamp mapped to page coords (y-flip), -signed.pdf; export image: canvas composite → -signed.png; how-to card on intake
+- registry +signature-studio (FilePenLine, pdf category) → TOOL_COUNT ৪৭; EDITOR_IDS/EDITOR_VIEWS wired; i18n +36 sg* keys
+- fix during E2E: pdf-lib drawImage takes an OPTIONS OBJECT (x/y/width/height), not positional args (tsc caught it); setPointerCapture wrapped in try/catch (synthetic pointers have no active id — drag still works via container handlers)
+- E2E (agent-browser, real runs): count ৪৭; PDF seeded (pm-test.pdf) → page rendered; typed "রফিকুল ইসলাম" → 12096 ink px on pad canvas; insert → stamp at 50%/62% → drag → 13.6%/63.3% → slider 5×ArrowRight → 26%→31% → export → contract-signed.pdf 16.7KB → pdfjs ground truth: 5 pages A4 595×842, stamp-ink 2818 px in target region SIGNATURE PRESENT; image mode → doc.png → typed "Rafik" → export doc-signed.png → pngjs: 1282 ink px, 600×400; pdf-editor dialog shows all 3 tabs (regression safe); EN ("Signature Studio"/"Add a document"/3-step how-to); mobile 390 sw=390; console clean on fresh loads
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 19 shipped: "কাগজ প্রিন্ট-সাইন-স্ক্যান চক্র" dead — any document gains real signatures (drawn, typed in Bengali/English, or photographed) placed visually and exported locally; the pdf-editor's old pad quietly became 2.0 too
+- TOOLS ৪৭; push 0697155 → Vercel
+- Lessons: this sandbox's CDP chokes on long multi-action mouse sequences and too many rapid evals — consolidate flows into single async evals and recycle the browser when evals start timing out; pdf-lib page APIs are options-object based
+- Artifacts: signature-pad.tsx 2.0, signature-studio.tsx, layout Caveat font, .verify/d19-signed.pdf + check-signed.mjs
