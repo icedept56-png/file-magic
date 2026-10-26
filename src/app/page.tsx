@@ -28,6 +28,7 @@ import { CompressionStudio } from "@/components/file-hub/compression-studio";
 import { WordEditor } from "@/components/file-hub/word-editor";
 import { ShortcutLayer } from "@/components/file-hub/shortcut-layer";
 import { OnboardingTour } from "@/components/file-hub/onboarding-tour";
+import { HelpCenter } from "@/components/file-hub/help-center";
 import { OfflineBanner } from "@/components/file-hub/offline-banner";
 import { Footer } from "@/components/file-hub/footer";
 import { HistorySync } from "@/components/file-hub/history-sync";
@@ -65,6 +66,7 @@ export default function Home() {
       </a>
       <ShortcutLayer />
       <OnboardingTour />
+      <HelpCenter />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Navbar />

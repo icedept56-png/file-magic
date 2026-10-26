@@ -9,6 +9,7 @@ import { PwaInstaller } from "@/components/file-hub/pwa-installer";
 import { LanguageToggle } from "@/components/file-hub/language-toggle";
 import { openShortcutsHelp } from "@/components/file-hub/shortcut-layer";
 import { TourButton } from "@/components/file-hub/onboarding-tour";
+import { HelpButton } from "@/components/file-hub/help-center";
 
 /** White top bar — brand + language switcher + install */
 export function Navbar() {
@@ -68,6 +69,7 @@ export function Navbar() {
             >
               <Keyboard className="h-4 w-4" />
             </Button>
+            <HelpButton />
           </div>
         </nav>
       </div>

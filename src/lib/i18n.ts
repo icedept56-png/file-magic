@@ -582,6 +582,81 @@ const STR = {
   ],
   ofDismiss: ["বার্তা বন্ধ করুন", "Dismiss message"],
 
+  // help center + feedback (Day 16 — 60-day roadmap)
+  hcTitle: ["সহায়তা কেন্দ্র", "Help center"],
+  hcSub: ["সাধারণ প্রশ্নের উত্তর আর মতামত জানানোর পথ", "Answers to common questions — and a way to tell us"],
+  tabFaq: ["সাধারণ প্রশ্ন", "FAQ"],
+  tabFeedback: ["মতামত দিন", "Feedback"],
+  hcQ1: ["আমার ফাইল কি কোথাও আপলোড হয়?", "Are my files uploaded anywhere?"],
+  hcA1: [
+    "না। প্রতিটি টুল আপনার ব্রাউজারেই কাজ করে — ফাইল ডিভাইস ছাড়ে না, তাই NID/ব্যাংক ডকুমেন্টও সম্পূর্ণ নিরাপদ।",
+    "No. Every tool runs inside your browser — files never leave the device, so NID/bank documents stay fully private.",
+  ],
+  hcQ2: ["ইন্টারনেট ছাড়া কি চলবে?", "Does it work without internet?"],
+  hcA2: [
+    "হ্যাঁ। অ্যাপটি একবার খুললেই ইন্টারনেট ছাড়া প্রায় সব টুল চলে — বাংলা OCR পর্যন্ত অফলাইনে কাজ করে।",
+    "Yes. Once the app has loaded, almost every tool works offline — including Bengali OCR.",
+  ],
+  hcQ3: ["কোন কোন ফরম্যাট সাপোর্ট করে?", "Which formats are supported?"],
+  hcA3: [
+    "পিডিএফ, ছবি (JPG/PNG/WebP/HEIC), Word, Excel, CSV, PowerPoint, ZIP, অডিও-ভিডিওসহ ৪৫টি টুল — উপরের সার্চে লিখে খুঁজুন।",
+    "PDF, images (JPG/PNG/WebP/HEIC), Word, Excel, CSV, PowerPoint, ZIP, audio/video — 45 tools in total; search above to find yours.",
+  ],
+  hcQ4: ["“যাচাইকৃত” ব্যাজ মানে কী?", "What does the “Verified” badge mean?"],
+  hcA4: [
+    "প্রতিটি আউটপুট ডাউনলোডের আগে ডিভাইসেই পরীক্ষা হয় — ফাইল খালি নয় ও সঠিক ফরম্যাটের; সবুজ ব্যাজ তার প্রমাণ।",
+    "Every output is checked on-device before download — non-empty and matching the right format; the green badge is that proof.",
+  ],
+  hcQ5: ["অনেক ফাইল একসাথে কীভাবে চালাব?", "How do I process many files at once?"],
+  hcA5: [
+    "“ব্যাচ স্টুডিও” খুলুন — অনেক ছবি একবারে কম্প্রেস/কনভার্ট হয়ে একটি ZIP-এ চলে আসে; কম্প্রেশন স্টুডিওতেও ব্যাচ আছে।",
+    "Open “Batch Studio” — many images compress/convert in one go and land in a single ZIP; Compression Studio supports batches too.",
+  ],
+  hcQ6: ["বাংলা লেখা কি ঠিক থাকে?", "Is Bengali text handled correctly?"],
+  hcA6: [
+    "হ্যাঁ — পিডিএফ, Word, টেক্সট সব আউটপুটে বাংলা যুক্তাক্ষরসহ নির্ভুলভাবে এমবেড হয়।",
+    "Yes — PDF, Word and text outputs embed Bengali perfectly, conjuncts included.",
+  ],
+  hcQ7: ["ভুল করলে কী করব?", "What if I make a mistake?"],
+  hcA7: [
+    "এডিটরে Ctrl+Z দিয়ে আন্ডু, Ctrl+Shift+Z দিয়ে রিডু; টুল থেকে বের হতে Esc; “?” চাপলে সব শর্টকাটের তালিকা।",
+    "Ctrl+Z to undo in editors, Ctrl+Shift+Z to redo; Esc exits a tool; press “?” for the full shortcut list.",
+  ],
+  hcQ8: ["আমার কাজের কী রেকর্ড থাকে?", "What history is kept about my work?"],
+  hcA8: [
+    "সাম্প্রতিক কাজে শুধু ফাইলের নাম/সাইজ ও সেটিংস ডিভাইসে থাকে — ভেতরের কনটেন্ট কখনো সেভ হয় না; “সব মুছুন” দিয়ে মুছে ফেলুন।",
+    "Recent activity keeps only file names/sizes and settings on your device — contents are never stored; “Clear all” wipes it.",
+  ],
+  hcMore: ["আপনার প্রশ্নের উত্তর পাননি?", "Didn't find your answer?"],
+  hcMoreBtn: ["মতামত পাঠান", "Send feedback"],
+  fbRate: ["কেমন লাগছে?", "How is it going?"],
+  fbGreat: ["দারুণ", "Great"],
+  fbGood: ["ভালো", "Good"],
+  fbNeeds: ["উন্নতি দরকার", "Needs work"],
+  fbTopic: ["বিষয়", "Topic"],
+  fbBug: ["বাগ", "Bug"],
+  fbFeature: ["ফিচার চাই", "Feature"],
+  fbTranslation: ["অনুবাদ", "Translation"],
+  fbOther: ["অন্যান্য", "Other"],
+  fbMsg: ["বার্তা (ঐচ্ছিক)", "Message (optional)"],
+  fbMsgPh: ["কী ভালো লাগল, কী বদলাতে চান — কয়েক লাইনে লিখুন…", "What you liked, what to change — a few lines…"],
+  fbSend: ["পাঠান", "Send"],
+  fbPickRating: ["রেটিং বেছে নিন", "Pick a rating first"],
+  fbThanks: ["ধন্যবাদ!", "Thank you!"],
+  fbThanksBody: [
+    "আপনার মতামত ডিভাইসে সেভ হয়েছে — কপি করে যেকোনো চ্যানেলে পাঠাতে পারেন।",
+    "Your feedback is saved on this device — copy it and send it through any channel.",
+  ],
+  fbCopy: ["কপি করুন", "Copy"],
+  fbCopied: ["মতামত কপি হয়েছে", "Feedback copied"],
+  fbCopyFail: ["কপি করা গেল না — বার্তা সিলেক্ট করে কপি করুন", "Copy failed — select the text and copy manually"],
+  fbMail: ["ইমেইলে পাঠান", "Send by email"],
+  fbAnother: ["আরেকটি লিখুন", "Write another"],
+  fbPrivacy: [
+    "মতামত আপনার ডিভাইসেই থাকে — কোনো সার্ভারে যায় না।",
+    "Feedback stays on your device — nothing is sent to a server.",
+  ],
+
   // footer
   footerLine: [
     "আপনার ফাইল আপনার ডিভাইসেই থাকে। কোনো আপলোড নেই, কোনো ট্র্যাকিং নেই।",

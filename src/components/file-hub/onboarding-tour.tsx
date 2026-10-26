@@ -297,7 +297,7 @@ export function TourButton() {
       onClick={openOnboardingTour}
       aria-label={t("obReplayAria")}
       title={t("obReplay")}
-      className="h-10 w-10 rounded-xl text-emerald-900/70 hover:bg-emerald-600/10 hover:text-emerald-900"
+      className="hidden h-10 w-10 rounded-xl text-emerald-900/70 hover:bg-emerald-600/10 hover:text-emerald-900 sm:inline-flex"
     >
       <Compass className="h-4 w-4" />
     </Button>
