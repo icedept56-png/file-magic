@@ -816,3 +816,19 @@ Stage Summary:
 - TOOLS ৪৭; push 0697155 → Vercel
 - Lessons: this sandbox's CDP chokes on long multi-action mouse sequences and too many rapid evals — consolidate flows into single async evals and recycle the browser when evals start timing out; pdf-lib page APIs are options-object based
 - Artifacts: signature-pad.tsx 2.0, signature-studio.tsx, layout Caveat font, .verify/d19-signed.pdf + check-signed.mjs
+
+---
+Task ID: 33
+Agent: main (Z.ai Code)
+Task: Day 20 (Phase 2 — 60-day roadmap) — শেয়ার ও প্রিন্ট UX
+
+Work Log:
+- NEW src/lib/share.ts: canShareFile/shareFile (Web Share API with files — mobile PWA gold), waShareLink/tgShareLink deep links (text-only by nature — honest fallback messaging), isPrintable(pdf/image/text/html), printBlob (PDF → hidden blob iframe + contentWindow.print(); image/text/html → minimal styled window with auto-print; object-URL cleanup after 60s; popup-blocked detection)
+- Workspace result rows now carry per-output Share (Share2) + Print (Printer, pdf/image/text only, hidden <sm) next to Download; share flow: native share when canShare → else WhatsApp deep link "ফাইল ম্যাজিক অ্যাপে বানানো হয়েছে — {name}" + explanatory toast; i18n +6 sh* keys
+- E2E (agent-browser): text→pdf run → row shows Share+Print; PRINT click → hidden blob: iframe attached + toast "প্রিন্ট উইন্ডো খোলা হয়েছে"; SHARE click → wa.me→api.whatsapp.com opened carrying the exact encoded Bengali message + filename (headless navigated the tab — real browsers open a new tab via noopener; feature proven by URL); EN ("Share"/"Print"); mobile 390 sw=390 (print hidden, share visible); console 0
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 20 shipped: "ফাইল পাঠানো ঝামেলা" softened — outputs can now jump straight into the user's share sheet (real files on mobile) or WhatsApp, and PDFs/images print directly from the result row without downloading first
+- Lesson: wa.me deep links carry TEXT only — files must be attached by the user after download (messaging made explicit in the fallback toast); headless window.open hijacks the tab, so test share links via resulting URL
+- Artifacts: share.ts, workspace.tsx result row, .verify via agent-browser
