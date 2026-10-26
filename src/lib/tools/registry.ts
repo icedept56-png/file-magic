@@ -85,6 +85,7 @@ export const EDITOR_IDS: readonly string[] = [
   "compression-studio",
   "word-editor",
   "cv-builder",
+  "signature-studio",
 ];
 
 export const TOOLS: ToolDef[] = [
@@ -727,6 +728,28 @@ export const TOOLS: ToolDef[] = [
     actionLabelEn: "Extract text",
     options: [],
     process: formats.odtRtfToText,
+  },
+  {
+    id: "signature-studio",
+    name: "সিগনেচার স্টুডিও",
+    nameEn: "Signature Studio",
+    desc: "আঁকা/টাইপ/ছবি — যেকোনো পিডিএফ বা ছবিতে সিগনেচার বসান, ডাউনলোড করুন",
+    descEn: "Draw, type or upload — place your signature on any PDF or image and download",
+    keywords: ["sign", "signature", "সিগনেচার", "স্বাক্ষর", "sign pdf", "stamp"],
+    category: "pdf",
+    icon: FilePenLine,
+    gradient: "bg-gradient-to-br from-rose-500 to-red-600 shadow-rose-500/40",
+    glow: "rgba(244,63,94,0.35)",
+    files: { accept: "application/pdf,image/*,.pdf,.png,.jpg,.jpeg,.webp,.heic", multiple: false },
+    inputMode: "file",
+    hint: "পিডিএফ বা ছবি",
+    hintEn: "PDF or image",
+    actionLabel: "স্টুডিও খুলুন",
+    actionLabelEn: "Open studio",
+    options: [],
+    process: async () => {
+      throw new Error("সিগনেচার স্টুডিওর নিজস্ব ভিউ আছে — টুলটি খুলুন।");
+    },
   },
   {
     id: "cv-builder",

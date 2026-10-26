@@ -28,6 +28,7 @@ import { BatchStudio } from "@/components/file-hub/batch-studio";
 import { CompressionStudio } from "@/components/file-hub/compression-studio";
 import { WordEditor } from "@/components/file-hub/word-editor";
 import { CvBuilder } from "@/components/file-hub/cv-builder";
+import { SignatureStudio } from "@/components/file-hub/signature-studio";
 import { ShortcutLayer } from "@/components/file-hub/shortcut-layer";
 import { OnboardingTour } from "@/components/file-hub/onboarding-tour";
 import { HelpCenter } from "@/components/file-hub/help-center";
@@ -49,6 +50,7 @@ const EDITOR_VIEWS: Record<string, React.ComponentType> = {
   "compression-studio": CompressionStudio,
   "word-editor": WordEditor,
   "cv-builder": CvBuilder,
+  "signature-studio": SignatureStudio,
 };
 
 export default function Home() {

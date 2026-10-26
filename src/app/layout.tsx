@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Hind_Siliguri, Outfit } from "next/font/google";
+import { Hind_Siliguri, Outfit, Caveat } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { RegisterSW } from "@/components/file-hub/register-sw";
@@ -14,6 +14,13 @@ const latin = Outfit({
   variable: "--font-latin",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
+});
+
+/** handwriting face for typed signatures (Day 19) */
+const sign = Caveat({
+  variable: "--font-sign",
+  subsets: ["latin"],
+  weight: ["400", "600"],
 });
 
 export const metadata: Metadata = {
@@ -72,7 +79,7 @@ export default function RootLayout({
   return (
     <html lang="bn" suppressHydrationWarning>
       <body
-        className={`${bengali.variable} ${latin.variable} antialiased bg-background text-foreground`}
+        className={`${bengali.variable} ${latin.variable} ${sign.variable} antialiased bg-background text-foreground`}
       >
         {children}
         <Toaster position="top-center" richColors />
