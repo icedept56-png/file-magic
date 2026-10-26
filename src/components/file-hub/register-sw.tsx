@@ -8,16 +8,19 @@ import { useEffect } from "react";
  * 1. Dev (and any environment where we don't register): actively UNREGISTER
  *    every service worker + delete every cache, then reload once. This heals
  *    browsers that still hold a stale SW from an older deployment (broken
- *    graphics = old cached CSS mixed with new HTML).
- * 2. Production: register /sw.js (offline support). The SW itself is
- *    versioned and clears old caches on activate.
+ *    graphics = old cached CSS mixed with new HTML). Dev override: opening
+ *    the app with ?fm-sw=1 registers the SW for offline testing.
+ * 2. Production: register /sw.js (offline support + background OCR cache
+ *    warmup). The SW is versioned and clears old caches on activate; when a
+ *    new version waits, a toast offers one-tap refresh.
  */
 export function RegisterSW() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator)) return;
 
-    const shouldRegister = process.env.NODE_ENV === "production";
+    const devOverride = new URLSearchParams(window.location.search).has("fm-sw");
+    const shouldRegister = process.env.NODE_ENV === "production" || devOverride;
 
     const heal = async () => {
       try {
@@ -52,9 +55,41 @@ export function RegisterSW() {
 
     const onLoad = () => {
       if (shouldRegister) {
-        navigator.serviceWorker.register("/sw.js").catch(() => {
-          /* SW is a bonus — never break the app for it */
-        });
+        navigator.serviceWorker
+          .register("/sw.js")
+          .then(async (reg) => {
+            // production only: a waiting new version → offer one-tap refresh
+            if (process.env.NODE_ENV !== "production") return;
+            const notify = async () => {
+              const { toast } = await import("sonner");
+              const bn = (window.localStorage.getItem("fm-lang") ?? "bn") !== "en";
+              toast(bn ? "নতুন সংস্করণ প্রস্তুত" : "New version ready", {
+                description: bn
+                  ? "রিফ্রেশ করলেই সর্বশেষ ভার্সন চলবে"
+                  : "Refresh to switch to the latest version",
+                action: {
+                  label: bn ? "রিফ্রেশ" : "Refresh",
+                  onClick: () => {
+                    reg.waiting?.postMessage("SKIP_WAITING");
+                  },
+                },
+                duration: 8000,
+              });
+            };
+            if (reg.waiting && navigator.serviceWorker.controller) await notify();
+            reg.addEventListener("updatefound", () => {
+              reg.installing?.addEventListener("statechange", (e) => {
+                const sw = e.target as ServiceWorker;
+                if (sw.state === "installed" && navigator.serviceWorker.controller) void notify();
+              });
+            });
+            navigator.serviceWorker.addEventListener("controllerchange", () => {
+              window.location.reload();
+            });
+          })
+          .catch(() => {
+            /* SW is a bonus — never break the app for it */
+          });
       } else {
         heal();
       }

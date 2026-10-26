@@ -574,6 +574,14 @@ const STR = {
   raOutputs: ["টি আউটপুট", "outputs"],
   raTextInput: ["টেক্সট ইনপুট", "Text input"],
 
+  // offline hardening (Day 15 — 60-day roadmap)
+  ofTitle: ["আপনি এখন অফলাইনে", "You're offline"],
+  ofBody: [
+    "কোনো সমস্যা নেই — সব টুল ডিভাইসেই চলছে, ফাইল ইন্টারনেট ছাড়াও কাজ করবে।",
+    "No problem — every tool keeps running on your device, files work without internet.",
+  ],
+  ofDismiss: ["বার্তা বন্ধ করুন", "Dismiss message"],
+
   // footer
   footerLine: [
     "আপনার ফাইল আপনার ডিভাইসেই থাকে। কোনো আপলোড নেই, কোনো ট্র্যাকিং নেই।",

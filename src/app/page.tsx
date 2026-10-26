@@ -28,6 +28,7 @@ import { CompressionStudio } from "@/components/file-hub/compression-studio";
 import { WordEditor } from "@/components/file-hub/word-editor";
 import { ShortcutLayer } from "@/components/file-hub/shortcut-layer";
 import { OnboardingTour } from "@/components/file-hub/onboarding-tour";
+import { OfflineBanner } from "@/components/file-hub/offline-banner";
 import { Footer } from "@/components/file-hub/footer";
 import { HistorySync } from "@/components/file-hub/history-sync";
 
@@ -112,6 +113,7 @@ export default function Home() {
         </main>
         <Footer />
       </div>
+      <OfflineBanner />
     </div>
   );
 }
