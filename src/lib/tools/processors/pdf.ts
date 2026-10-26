@@ -172,7 +172,7 @@ export async function pdfToImages(
     zip.file(`page-${i + 1}.${ext}`, await renderPage(i + 1));
   }
   onProgress(95, pLabel("pZipMaking"));
-  const zipBlob: Blob = await zip.generateAsync<"blob">({ compression: "STORE" });
+  const zipBlob: Blob = await zip.generateAsync<"blob">({ type: "blob", compression: "STORE" });
   onProgress(100, pLabel("pDone"));
   return [{ name: `${base}-pages.zip`, blob: zipBlob }];
 }

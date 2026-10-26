@@ -60,7 +60,7 @@ export async function xlsxToCsv(
     zip.file(`${entry}.csv`, XLSX.utils.sheet_to_csv(wb.Sheets[names[i]]));
   }
   onProgress(92, pLabel("pZipMaking"));
-  const zipBlob: Blob = await zip.generateAsync<"blob">({ compression: "STORE" });
+  const zipBlob: Blob = await zip.generateAsync<"blob">({ type: "blob", compression: "STORE" });
   onProgress(100, pLabel("pDone"));
   return [{ name: `${base}-csv.zip`, blob: zipBlob }];
 }
@@ -161,8 +161,8 @@ export async function createZip(
   const level = Math.min(9, Math.max(0, Number(opts.level ?? 6)));
   const blob: Blob = await zip.generateAsync<"blob">(
     level === 0
-      ? { compression: "STORE" }
-      : { compression: "DEFLATE", compressionOptions: { level } },
+      ? { type: "blob", compression: "STORE" }
+      : { type: "blob", compression: "DEFLATE", compressionOptions: { level } },
     (meta) => onProgress(Math.round(meta.percent), pLabel("pZipMaking2"))
   );
   onProgress(100, pLabel("pDone"));
