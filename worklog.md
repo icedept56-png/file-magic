@@ -689,3 +689,21 @@ Stage Summary:
 - The gate earned its keep: a fully-broken headline tool (ZIP বানান) that lint+tsc+partial tests missed is now fixed with evidence
 - Lesson: TS generics are NOT runtime options (generateAsync<"blob"> vs {type:"blob"}); chain real outputs back in as inputs (merge→split, xlsx→csv) to test seams between tools; editors unmount their file input after load — seed scripts must re-check intake presence
 - Artifacts: data.ts/pdf.ts fixes, ROADMAP gate block, .verify/qa scripts
+
+---
+Task ID: 26
+Agent: main (Z.ai Code)
+Task: Day 13 (Phase 2 — 60-day roadmap) — অনবোর্ডিং ট্যুর + স্মার্ট এম্পটি-স্টেট
+
+Work Log:
+- NEW src/components/file-hub/onboarding-tour.tsx — 5-step first-visit spotlight tour over home: search → privacy stats → featured → tool grid → navbar shortcuts; localStorage flag fm-onboarded-v1 (done/skip sets it; private-mode browsers never see it); replay via fm-open-tour custom event + new navbar Compass button (goHome first — tour is home-only); spotlight = transparent click-blocker (z-90) + hole div with 9999px box-shadow + emerald outline (z-91) + guide card (z-92); rAF loop re-measures the target each frame so the hole tracks scroll/resize/hero entrance; card placed below/above target with viewport clamping; 44px controls, role=dialog aria-modal, Esc/arrows, focus moved to primary button per step
+- Smart empty state: registry.ts +suggestTools() — 20-entry bn/en alias table (compress/scan/NID/merge/word/excel/zip/QR/rotate/HEIC/…) → token-scoring fallback over name+desc+keywords; +popularTools() fallback; tool-grid.tsx no-match card now shows "আপনি হয়তো এগুলো খুঁজছেন" (or "জনপ্রিয় টুল" when even suggestions miss) with 3 ToolCards
+- Anchors added: #fm-hero-stats (hero), #fm-featured (featured), #fm-sk-btn (navbar shortcuts), i18n +17 ob*/se* keys
+- E2E (agent-browser): fresh state → tour auto-opens (bn, hole present all 5 steps, grid title interpolates "৪৫"); শুরু করি! → flag=1, reload hides tour; compass replay reopens; Esc skips; gibberish search → জনপ্রিয় টুল fallback with 3 cards; "ছবি ছোট করব" → কম্প্রেশন স্টুডিও first; EN tour ("Find any tool instantly"/"Skip tour"/"Next"); mobile 390 — sw=390, card 358px fits, steps advance; console 0 errors
+- Gates: eslint 0, tsc clean (src/)
+
+Stage Summary:
+- Day 13 shipped: first-time users get a guided, mobile-safe tour with a real spotlight; failed searches now recover into 1-tap tool suggestions instead of a dead end
+- Phase 2 started (Day 13 of 13-24); push 6558e14 → Vercel auto-deploy
+- Lesson: react-hooks/refs forbids ref writes during render — drop langRef mirrors, useT() already re-renders; set-state-in-effect guard → prefer render-guards over rect resets
+- Artifacts: onboarding-tour.tsx, registry suggestTools, .verify/d13-{tour,mobile}.png
